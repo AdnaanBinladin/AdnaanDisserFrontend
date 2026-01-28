@@ -1,0 +1,12 @@
+node_modules/
+public/node_modules/
+.next/
+
+.env
+.env.*
+
+.vscode/
+.idea/
+
+.DS_Store
+Thumbs.db

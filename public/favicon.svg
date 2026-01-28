@@ -1,0 +1,58 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="plate-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+    <linearGradient id="orange-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+    <linearGradient id="apple-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#dc2626" />
+      <stop offset="100%" stop-color="#ef4444" />
+    </linearGradient>
+    <linearGradient id="leaf-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#16a34a" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  <!-- Plate - simple and recognizable -->
+  <ellipse cx="32" cy="40" rx="24" ry="6" fill="url(#plate-grad)" filter="url(#shadow)"/>
+  <!-- Plate rim highlight -->
+  <ellipse cx="32" cy="38" rx="24" ry="4" fill="#fde68a" opacity="0.4"/>
+  <!-- Orange fruit (left) -->
+  <circle cx="22" cy="32" r="7" fill="url(#orange-grad)" filter="url(#shadow)"/>
+  <!-- Orange texture dots -->
+  <g opacity="0.3">
+    <circle cx="20" cy="30" r="0.5" fill="#c2410c"/>
+    <circle cx="22" cy="29" r="0.5" fill="#c2410c"/>
+    <circle cx="24" cy="31" r="0.5" fill="#c2410c"/>
+    <circle cx="21" cy="33" r="0.5" fill="#c2410c"/>
+    <circle cx="23" cy="34" r="0.5" fill="#c2410c"/>
+  </g>
+  <!-- Orange highlight -->
+  <circle cx="20" cy="30" r="2" fill="white" opacity="0.3"/>
+  <!-- Apple (right) -->
+  <ellipse cx="42" cy="32" rx="7" ry="8" fill="url(#apple-grad)" filter="url(#shadow)"/>
+  <!-- Apple top indent -->
+  <ellipse cx="42" cy="25" rx="2" ry="1" fill="#991b1b"/>
+  <!-- Apple stem -->
+  <rect x="41.5" y="22" width="1" height="3" rx="0.5" fill="#78350f"/>
+  <!-- Apple leaf -->
+  <ellipse cx="45" cy="24" rx="2.5" ry="1.5" fill="url(#leaf-grad)" transform="rotate(-30 45 24)"/>
+  <!-- Apple highlight -->
+  <ellipse cx="39" cy="29" rx="2" ry="3" fill="white" opacity="0.35"/>
+  <!-- Leafy green/lettuce (center back) -->
+  <g opacity="0.9">
+    <ellipse cx="32" cy="28" rx="6" ry="7" fill="url(#leaf-grad)" filter="url(#shadow)"/>
+    <path d="M 32 22 Q 28 24 26 28 Q 28 26 30 26 Q 32 24 32 22 Z" fill="#10b981"/>
+    <path d="M 32 22 Q 36 24 38 28 Q 36 26 34 26 Q 32 24 32 22 Z" fill="#10b981"/>
+  </g>
+  <!-- Small heart showing sharing/care -->
+  <path d="M 32 14 L 34 12 Q 36 10 36 12 Q 36 14 32 18 Q 28 14 28 12 Q 28 10 30 12 Z" fill="#10b981" opacity="0.7" filter="url(#shadow)"/>
+</svg>
+

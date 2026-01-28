@@ -1,0 +1,268 @@
+"use client"
+
+import { useMemo, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import {
+  ArrowLeft,
+  Package,
+  CheckCircle,
+  AlertTriangle,
+  MapPin,
+  Apple,
+  Carrot,
+  Leaf,
+  XCircle,
+  Filter,
+} from "lucide-react"
+import type { DonationItem } from "@/components/donor-dashboard"
+import { motion } from "framer-motion"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+interface DonationHistoryProps {
+  onBack: () => void
+  foodItems: DonationItem[]
+}
+
+type StatusFilter = "all" | "available" | "cancelled" | "expired" | "claimed"
+
+export function DonationHistory({ onBack, foodItems }: DonationHistoryProps) {
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+
+  // --------------------------------------------------
+  // ✅ NORMALIZE STATUS (critical fix)
+  // --------------------------------------------------
+  const normalizeStatus = (status?: string): StatusFilter => {
+    const s = (status || "").toLowerCase()
+    if (s === "completed") return "claimed"
+    if (s === "claimed") return "claimed"
+    if (s === "expired") return "expired"
+    if (s === "cancelled") return "cancelled"
+    return "available"
+  }
+
+  // --------------------------------------------------
+  // UI helpers
+  // --------------------------------------------------
+  const getStatusIcon = (status?: string) => {
+    switch (normalizeStatus(status)) {
+      case "available":
+        return <Package className="h-4 w-4" />
+      case "claimed":
+        return <CheckCircle className="h-4 w-4" />
+      case "expired":
+        return <AlertTriangle className="h-4 w-4" />
+      case "cancelled":
+        return <XCircle className="h-4 w-4" />
+      default:
+        return <Package className="h-4 w-4" />
+    }
+  }
+
+  const getStatusColor = (status?: string) => {
+    switch (normalizeStatus(status)) {
+      case "available":
+        return "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+      case "claimed":
+        return "bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+      case "expired":
+        return "bg-gradient-to-r from-red-500 to-rose-500 text-white"
+      case "cancelled":
+        return "bg-gradient-to-r from-slate-500 to-gray-600 text-white"
+      default:
+        return "bg-gradient-to-r from-gray-400 to-gray-500 text-white"
+    }
+  }
+
+  // --------------------------------------------------
+  // SORT (unchanged behavior)
+  // --------------------------------------------------
+  const sortedItems = useMemo(() => {
+    return [...foodItems].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() -
+        new Date(a.created_at).getTime()
+    )
+  }, [foodItems])
+
+  // --------------------------------------------------
+  // FILTER (fixed – no silent empty state)
+  // --------------------------------------------------
+  const filteredItems = useMemo(() => {
+    if (statusFilter === "all") return sortedItems
+    return sortedItems.filter(
+      (item) => normalizeStatus(item.status) === statusFilter
+    )
+  }, [sortedItems, statusFilter])
+
+  // --------------------------------------------------
+  // COUNTS (fixed to match real data)
+  // --------------------------------------------------
+  const counts = useMemo(() => {
+    const c = { available: 0, cancelled: 0, expired: 0, claimed: 0 }
+    for (const it of foodItems) {
+      const s = normalizeStatus(it.status)
+      if (s === "available") c.available++
+      else if (s === "cancelled") c.cancelled++
+      else if (s === "expired") c.expired++
+      else if (s === "claimed") c.claimed++
+    }
+    return c
+  }, [foodItems])
+
+  // --------------------------------------------------
+  // UI
+  // --------------------------------------------------
+  return (
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-orange-50 via-red-50 to-green-50 p-6">
+      {/* Decorative icons */}
+      <Apple className="absolute top-16 right-8 h-32 w-32 text-red-500 opacity-10 rotate-12" />
+      <Carrot className="absolute bottom-16 left-8 h-28 w-28 text-orange-500 opacity-10 -rotate-12" />
+      <Leaf className="absolute top-1/2 right-1/4 h-24 w-24 text-green-500 opacity-10 rotate-45" />
+
+      <div className="max-w-6xl mx-auto relative z-10">
+        {/* Back */}
+        <Button
+          variant="outline"
+          onClick={onBack}
+          className="flex items-center gap-2 mb-6 bg-white/80 border-2 border-orange-300"
+        >
+          <ArrowLeft className="h-4 w-4 text-orange-600" />
+          <span className="text-orange-600 font-semibold">
+            Back to Dashboard
+          </span>
+        </Button>
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-orange-500 via-red-500 to-green-500 p-6 rounded-2xl shadow-lg mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+            <Apple className="h-7 w-7" /> Donation History
+            <Carrot className="h-7 w-7" />
+          </h1>
+          <p className="text-white/90">
+            View all your previous food donations and their current statuses
+          </p>
+
+          {/* Filter */}
+          <div className="mt-5 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+            <div className="flex items-center gap-2 text-white">
+              <Filter className="h-4 w-4" />
+              <span className="font-semibold">Filter by status</span>
+            </div>
+
+            <div className="flex gap-3 items-center">
+              <Select
+                value={statusFilter}
+                onValueChange={(v) =>
+                  setStatusFilter(v as StatusFilter)
+                }
+              >
+                <SelectTrigger className="w-[220px] bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    All ({foodItems.length})
+                  </SelectItem>
+                  <SelectItem value="available">
+                    Available ({counts.available})
+                  </SelectItem>
+                  <SelectItem value="claimed">
+                    Claimed ({counts.claimed})
+                  </SelectItem>
+                  <SelectItem value="expired">
+                    Expired ({counts.expired})
+                  </SelectItem>
+                  <SelectItem value="cancelled">
+                    Cancelled ({counts.cancelled})
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="outline"
+                onClick={() => setStatusFilter("all")}
+                className="bg-white"
+              >
+                Reset
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Cards */}
+        <div className="space-y-5">
+          {filteredItems.length === 0 ? (
+            <Card className="border-4 border-orange-200 bg-white">
+              <CardContent className="text-center py-8">
+                <Package className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-800">
+                  No donations found
+                </h3>
+                <p className="text-gray-600">
+                  Try switching the filter back to <b>All</b>.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredItems.map((item, index) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Card className="border-l-8 border-orange-500 bg-white shadow-md">
+                  <CardHeader>
+                    <div className="flex justify-between">
+                      <CardTitle>{item.title}</CardTitle>
+                      <Badge className={getStatusColor(item.status)}>
+                        {getStatusIcon(item.status)}
+                        {normalizeStatus(item.status)}
+                      </Badge>
+                    </div>
+                    <CardDescription>
+                      Added on{" "}
+                      {new Date(item.created_at)
+                        .toISOString()
+                        .split("T")[0]}
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <b>Category:</b> {item.category}
+                    </div>
+                    <div>
+                      <b>Quantity:</b> {item.quantity} {item.unit}
+                    </div>
+                    <div>
+                      <b>Urgency:</b> {item.urgency}
+                    </div>
+                    <div>
+                      <b>Expiry:</b> {item.expiry_date}
+                    </div>
+                    <div className="md:col-span-2">
+                      <b className="flex items-center gap-1">
+                        <MapPin className="h-4 w-4" />
+                        Pickup Address:
+                      </b>
+                      {item.pickup_address}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
