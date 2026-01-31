@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import accountCreatedAnimation from "@/public/animations/Account_Created.json";
 import { Mail, Lock, User, Apple, Carrot, Leaf, Phone, LockKeyhole } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { registerUser, loginUser } from "@/lib/auth";
+import Lottie from "lottie-react";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -23,6 +25,8 @@ export function LoginForm() {
   const router = useRouter();
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+
 
 
 // ✅ LOGIN HANDLER (FIXED & ROLE-SAFE)
@@ -118,10 +122,15 @@ const handleRegister = async (e: React.FormEvent) => {
     if (response.error) {
       setError(response.error);
     } else {
-      alert("Registration successful! Please log in.");
-      // Optional: auto-switch to Login tab or redirect
-      window.location.reload(); // simple refresh to reset form
+      // ✅ show success animation
+      setShowSuccessAnimation(true);
+    
+      // ⏱️ let animation play, then reload
+      setTimeout(() => {
+        window.location.reload();
+      }, 3200);
     }
+    
   } catch (err) {
     console.error("⚠️ Registration error:", err);
     setError("Something went wrong during registration.");
@@ -132,6 +141,17 @@ const handleRegister = async (e: React.FormEvent) => {
 
   return (
     <div className="relative overflow-hidden">
+      {showSuccessAnimation && (
+  <div className="fixed inset-0 z-[200] flex items-center justify-center bg-white">
+    <div className="w-[320px]">
+      <Lottie
+        animationData={accountCreatedAnimation}
+        loop={false}
+      />
+    </div>
+  </div>
+)}
+
       {/* 🍏 Background decorations */}
       <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-red-50 to-green-50 opacity-60" />
       <div className="absolute top-4 left-4 text-orange-300 opacity-30">

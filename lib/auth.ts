@@ -26,24 +26,40 @@ export interface RegisterUserData {
     return await res.json();
   }
   
-  export async function loginUser(credentials: LoginData) {
+/* ============================
+   ✅ FIXED LOGIN FUNCTION
+============================ */
+export async function loginUser(credentials: LoginData) {
+  try {
     const res = await fetch(`${BASE_URL}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(credentials),
     });
-  
+
     const data = await res.json();
-  
-    if (res.ok && data.donor?.id) {
-      localStorage.setItem("donorId", data.donor.id);
-      localStorage.setItem("donorEmail", data.donor.email);
-      localStorage.setItem("donorName", data.donor.full_name);
-      localStorage.setItem("donorRole", data.donor.role);
+
+    // ❌ Login failed (inactive / suspended / wrong creds)
+    if (!res.ok) {
+      return {
+        error: data.error || "Login failed",
+        status: res.status,
+      };
     }
-  
-    return data;
+
+    // ✅ Login success
+    return {
+      ...data,
+      status: res.status,
+    };
+
+  } catch (err) {
+    return {
+      error: "Unable to reach server",
+      status: 500,
+    };
   }
+}
   
 // 🔹 New: Get Donor Profile by ID
 export async function getDonorProfile(donorId: string) {

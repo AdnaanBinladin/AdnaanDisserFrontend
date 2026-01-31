@@ -9,15 +9,30 @@ import {
   Dialog,
   DialogTrigger,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "@/hooks/use-toast"
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 import {
   Plus,
+  Pencil,
   Package,
   Clock,
   CheckCircle,
@@ -69,9 +84,14 @@ export function DonorDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [donor, setDonor] = useState<any>(null)
   const [donorId, setDonorId] = useState<string>("")
+  const [editingDonation, setEditingDonation] = useState<DonationItem | null>(null)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<DonationItem | null>(null)
+
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+    libraries: ["places", "maps"],
   })
 
   // ------------------------------------------------------
@@ -116,33 +136,33 @@ export function DonorDashboard() {
   }, [donorId])
   
 
-  const addDonation = (newItem: DonationItem) => {
-    setFoodItems((prev) => [newItem, ...prev])
-  }
-
-  // ------------------------------------------------------
-  // 🗑 DELETE HANDLER (Cancel Donation)
-  // ------------------------------------------------------
-  const handleDelete = async (id: string) => {
-    const confirmDelete = confirm("Are you sure you want to delete this donation?")
-    if (!confirmDelete) return
-
-    try {
-      const res = await fetch(`http://localhost:5050/api/donations/${id}/cancel`, {
-        method: "PUT",
-      })
-
-      if (res.ok) {
-        setFoodItems((prev) => prev.filter((item) => item.id !== id))
-        alert("Donation cancelled successfully!")
-      } else {
-        alert("Failed to cancel donation.")
+  const addDonation = (updatedItem: DonationItem) => {
+    setFoodItems((prev) => {
+      const exists = prev.some((item) => item.id === updatedItem.id)
+  
+      if (exists) {
+        // ✏️ Edit → replace item
+        return prev.map((item) =>
+          item.id === updatedItem.id ? updatedItem : item
+        )
       }
-    } catch (err) {
-      console.error("❌ Error cancelling donation:", err)
-      alert("An error occurred while cancelling donation.")
-    }
+  
+      // ➕ Add → prepend
+      return [updatedItem, ...prev]
+    })
   }
+  
+
+  // ------------------------------------------------------
+  // ✏️ EDIT HANDLER
+  // ------------------------------------------------------
+  const handleEditDonation = (donation: DonationItem) => {
+    setEditingDonation(donation)
+    setIsEditMode(true)
+    setShowAddDialog(true)
+  }
+  
+
 
   // ------------------------------------------------------
   // HELPERS
@@ -184,7 +204,8 @@ const visibleDonations = foodItems.filter((item) => item.status !== "cancelled")
 // COUNTS
 // ------------------------------------------------------
 const availableCount = visibleDonations.filter((i) => i.status === "available").length
-const claimedCount = visibleDonations.filter((i) => i.status === "claimed" || i.status === "completed").length
+const claimedCount = visibleDonations.filter((i) => i.status === "claimed").length
+const completedCount = visibleDonations.filter((i) => i.status === "completed").length
 const expiredCount = visibleDonations.filter((i) => i.status === "expired").length
 const totalCount = visibleDonations.length
 
@@ -246,15 +267,43 @@ const totalCount = visibleDonations.length
   }
 
   const DashboardStats = () => {
-    const stats = [
-      { label: "Total Donations", value: totalCount, icon: Package, color: "from-orange-400 to-red-400" },
-      { label: "Available", value: availableCount, icon: Clock, color: "from-amber-400 to-yellow-400" },
-      { label: "Completed", value: claimedCount, icon: CheckCircle, color: "from-green-400 to-emerald-400" },
-      { label: "Expired", value: expiredCount, icon: AlertTriangle, color: "from-rose-400 to-pink-400" },
-    ]
+const stats = [
+  {
+    label: "Total Donations",
+    value: totalCount,
+    icon: Package,
+    color: "from-orange-400 to-red-400",
+  },
+  {
+    label: "Available",
+    value: availableCount,
+    icon: Clock,
+    color: "from-amber-400 to-yellow-400",
+  },
+  {
+    label: "Claimed",
+    value: claimedCount,
+    icon: CheckCircle,
+    color: "from-emerald-400 to-green-400",
+  },
+  {
+    label: "Completed",
+    value: completedCount,
+    icon: CheckCircle,
+    color: "from-green-500 to-emerald-500",
+  },
+  {
+    label: "Expired",
+    value: expiredCount,
+    icon: AlertTriangle,
+    color: "from-rose-400 to-pink-400",
+  },
+]
+
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
+
         {stats.map((s, i) => (
           <Card
             key={i}
@@ -385,97 +434,174 @@ const totalCount = visibleDonations.length
                       <th className="text-left py-3 px-4 font-semibold text-orange-700">Status</th>
                       <th className="text-left py-3 px-4 font-semibold text-orange-700">QR Code</th>
                       <th className="text-left py-3 px-4 font-semibold text-orange-700">Location</th>
-                      <th className="text-left py-3 px-4 font-semibold text-orange-700">Created</th>
                       <th className="text-left py-3 px-4 font-semibold text-orange-700">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleDonations.map((item) => (
-                      <tr key={item.id} className="border-b border-orange-100 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 transition-colors">
-                        <td className="py-3 px-4 font-medium text-orange-900">{item.title}</td>
-                        <td className="py-3 px-4 capitalize text-orange-800">{item.category}</td>
-                        <td className="py-3 px-4 text-orange-800">{item.quantity} {item.unit}</td>
-                        <td className="py-3 px-4 text-orange-800">{item.expiry_date}</td>
-                        <td className="py-3 px-4 capitalize text-orange-800">{item.urgency}</td>
-                        <td className="py-3 px-4">
-                          <Badge className={`flex items-center gap-1 w-fit ${getStatusColor(item.status)} font-semibold shadow-md`}>
-                            {getStatusIcon(item.status)}
-                            {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                          </Badge>
-                        </td>
-{/* 🧾 QR Code (click to enlarge) */}
-<td className="py-3 px-4 text-center">
-  {item.qr_code ? (
-    <Dialog>
-      <DialogTrigger asChild>
-        <img
-          src={`data:image/png;base64,${item.qr_code}`}
-          alt="Pickup QR Code"
-          className="w-12 h-12 border rounded-md shadow-md cursor-pointer hover:scale-105 transition-transform"
-          title="Click to enlarge QR code"
-        />
-      </DialogTrigger>
+  {visibleDonations.map((item) => {
+    // ✅ deletion rules
+    const canDelete =
+      item.status === "available" || item.status === "expired"
 
-      <DialogContent className="max-w-sm bg-white rounded-xl shadow-xl flex flex-col items-center justify-center p-6">
-        <h3 className="text-lg font-semibold text-orange-700 mb-3">
-          Scan this QR Code to confirm pickup
-        </h3>
-        <img
-          src={`data:image/png;base64,${item.qr_code}`}
-          alt="Full QR Code"
-          className="w-64 h-64 border-2 border-orange-300 rounded-lg shadow-md"
-        />
-        <p className="text-sm text-gray-600 mt-3 text-center">
-          NGOs can scan this QR code when collecting your donation.
-        </p>
-      </DialogContent>
-    </Dialog>
-  ) : (
-    <span className="text-gray-400 text-xs italic">No QR</span>
-  )}
-</td>
+    return (
+      <tr
+        key={item.id}
+        className="border-b border-orange-100 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 transition-colors"
+      >
+        <td className="py-3 px-4 font-medium text-orange-900">
+          {item.title}
+        </td>
 
-                        <td className="py-3 px-4">
-                          {isLoaded && item.pickup_lat && item.pickup_lng ? (
-                            <a
-                              href={`https://www.google.com/maps?q=${item.pickup_lat},${item.pickup_lng}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block rounded-md overflow-hidden border border-orange-200 shadow hover:shadow-md hover:scale-105 transition-all"
-                              style={{ width: "40px", height: "40px" }}
-                            >
-                              <GoogleMap
-                                mapContainerStyle={{ width: "40px", height: "40px" }}
-                                center={{ lat: item.pickup_lat, lng: item.pickup_lng }}
-                                zoom={15}
-                                options={{
-                                  disableDefaultUI: true,
-                                  zoomControl: false,
-                                  streetViewControl: false,
-                                  mapTypeControl: false,
-                                  gestureHandling: "none",
-                                }}
-                              >
-                                <Marker position={{ lat: item.pickup_lat, lng: item.pickup_lng }} />
-                              </GoogleMap>
-                            </a>
-                          ) : (
-                            <span className="text-gray-400 text-xs italic">No map</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-orange-700">{new Date(item.created_at).toISOString().split("T")[0]}</td>
-                        <td className="py-3 px-4">
-                          <Button
-                            onClick={() => handleDelete(item.id)}
-                            className="flex items-center gap-1 bg-gradient-to-r from-red-500 to-orange-500 text-white hover:scale-105 transition-transform"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
+        <td className="py-3 px-4 capitalize text-orange-800">
+          {item.category}
+        </td>
+
+        <td className="py-3 px-4 text-orange-800">
+          {item.quantity} {item.unit}
+        </td>
+
+        <td className="py-3 px-4 text-orange-800">
+          {item.expiry_date}
+        </td>
+
+        <td className="py-3 px-4 capitalize text-orange-800">
+          {item.urgency}
+        </td>
+
+        <td className="py-3 px-4">
+          <Badge
+            className={`flex items-center gap-1 w-fit ${getStatusColor(
+              item.status
+            )} font-semibold shadow-md`}
+          >
+            {getStatusIcon(item.status)}
+            {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+          </Badge>
+        </td>
+
+        {/* 🧾 QR Code */}
+        <td className="py-3 px-4 text-center">
+          {item.qr_code ? (
+            <Dialog>
+              <DialogTrigger asChild>
+                <img
+                  src={`data:image/png;base64,${item.qr_code}`}
+                  alt="Pickup QR Code"
+                  className="w-12 h-12 border rounded-md shadow-md cursor-pointer hover:scale-105 transition-transform"
+                />
+              </DialogTrigger>
+
+              <DialogContent className="max-w-sm bg-white rounded-xl shadow-xl flex flex-col items-center p-6">
+                <DialogHeader>
+                  <DialogTitle className="text-lg font-semibold text-orange-700 mb-3">
+                    Scan this QR Code to confirm pickup
+                  </DialogTitle>
+                </DialogHeader>
+
+                <img
+                  src={`data:image/png;base64,${item.qr_code}`}
+                  alt="Full QR Code"
+                  className="w-64 h-64 border-2 border-orange-300 rounded-lg shadow-md"
+                />
+
+                <p className="text-sm text-gray-600 mt-3 text-center">
+                  NGOs can scan this QR code when collecting your donation.
+                </p>
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <span className="text-gray-400 text-xs italic">No QR</span>
+          )}
+        </td>
+
+        {/* 📍 Location */}
+        <td className="py-3 px-4">
+          {isLoaded && item.pickup_lat && item.pickup_lng ? (
+            <a
+              href={`https://www.google.com/maps?q=${item.pickup_lat},${item.pickup_lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-md overflow-hidden border border-orange-200 shadow hover:shadow-md hover:scale-105 transition-all"
+              style={{ width: "40px", height: "40px" }}
+            >
+              <GoogleMap
+                mapContainerStyle={{ width: "40px", height: "40px" }}
+                center={{ lat: item.pickup_lat, lng: item.pickup_lng }}
+                zoom={15}
+                options={{
+                  disableDefaultUI: true,
+                  zoomControl: false,
+                  streetViewControl: false,
+                  mapTypeControl: false,
+                  gestureHandling: "none",
+                }}
+              >
+                <Marker
+                  position={{ lat: item.pickup_lat, lng: item.pickup_lng }}
+                />
+              </GoogleMap>
+            </a>
+          ) : (
+            <span className="text-gray-400 text-xs italic">No map</span>
+          )}
+        </td>
+
+        {/* ⚙️ Actions */}
+        <td className="py-3 px-4">
+          <div className="flex items-center gap-2">
+            {/* ✏️ Edit */}
+            <button
+              onClick={() => handleEditDonation(item)}
+              disabled={item.status !== "available"}
+              className={`p-2 rounded-md text-white transition-colors ${
+                item.status === "available"
+                  ? "bg-blue-500 hover:bg-blue-600"
+                  : "bg-gray-300 cursor-not-allowed"
+              }`}
+              title={
+                item.status !== "available"
+                  ? "Only available donations can be edited"
+                  : "Edit donation"
+              }
+            >
+              <Pencil size={16} />
+            </button>
+
+            {/* 🗑️ Delete */}
+            <button
+  onClick={() => {
+    if (!canDelete) {
+      toast({
+        title: "Action not allowed",
+        description: "This donation can no longer be deleted.",
+        variant: "destructive",
+      })
+      return
+    }
+    setDeleteTarget(item)
+  }}
+  disabled={!canDelete}
+  title={
+    canDelete
+      ? "Delete donation"
+      : "Claimed or completed donations cannot be deleted"
+  }
+  className={`p-2 rounded-md transition-colors ${
+    canDelete
+      ? "bg-red-500 hover:bg-red-600 text-white"
+      : "bg-gray-300 cursor-not-allowed text-gray-600"
+  }`}
+>
+  <Trash2 size={16} />
+</button>
+
+          </div>
+        </td>
+      </tr>
+    )
+  })}
+</tbody>
+
                 </table>
               </div>
             )}
@@ -493,14 +619,74 @@ const totalCount = visibleDonations.length
 
         {/* ➕ Add Donation Dialog */}
         <AddDonationDialog
-          open={showAddDialog}
-          onOpenChange={setShowAddDialog}
-          donorId={donorId}
-          onAdded={addDonation}
-        />
+  open={showAddDialog}
+  onOpenChange={(open: boolean) => {
+    setShowAddDialog(open)
+    if (!open) {
+      setEditingDonation(null)
+      setIsEditMode(false)
+    }
+  }}
+  donorId={donorId}
+  onAdded={addDonation}
+  donation={editingDonation}
+  isEdit={isEditMode}
+/>
+
 
         {/* 🔔 Floating Notification Bell */}
         <TopRightMenu />
+
+        {/* 🗑️ Delete Confirmation Dialog */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete donation?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. The donation will be cancelled and removed
+                from your dashboard.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 hover:bg-red-700"
+                onClick={async () => {
+                  if (!deleteTarget) return
+
+                  try {
+                    const res = await fetch(
+                      `http://localhost:5050/api/donations/${deleteTarget.id}/cancel`,
+                      { method: "PUT" }
+                    )
+
+                    if (!res.ok) throw new Error()
+
+                    setFoodItems(prev =>
+                      prev.filter(item => item.id !== deleteTarget.id)
+                    )
+
+                    toast({
+                      title: "Donation deleted",
+                      description: `"${deleteTarget.title}" was cancelled successfully.`,
+                    })
+                  } catch {
+                    toast({
+                      title: "Delete failed",
+                      description: "Something went wrong. Please try again.",
+                      variant: "destructive",
+                    })
+                  } finally {
+                    setDeleteTarget(null)
+                  }
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   )

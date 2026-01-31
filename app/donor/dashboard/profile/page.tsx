@@ -17,10 +17,8 @@ import {
   Mail,
   Phone,
   User,
-  Clock,
   CheckCircle2,
   AlertTriangle,
-  MapPin,
   Bell,
   LogOut,
   LayoutDashboard,
@@ -28,7 +26,18 @@ import {
   X,
   Edit3,
   Shield,
+  Calendar,
+  UserCheck,
+  Trash2,
 } from "lucide-react";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /* ============================
    TYPES
@@ -40,20 +49,16 @@ type DonorUser = {
   email: string;
   phone?: string;
   role: "donor";
+  status: "active" | "inactive" | "suspended";
 };
+
 
 type DonorProfileResponse = {
   type: "donor";
   user: DonorUser;
 };
 
-type DonationActivity = {
-  id: string;
-  title: string;
-  status: "completed" | "available" | "expired";
-  location: string;
-  created_at: string;
-};
+
 
 /* ============================
    COMPONENT
@@ -63,7 +68,6 @@ export default function DonorProfilePage() {
   const router = useRouter();
 
   const [profile, setProfile] = useState<DonorProfileResponse | null>(null);
-  const [activity, setActivity] = useState<DonationActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -72,6 +76,11 @@ export default function DonorProfilePage() {
     email: "",
     phone: "",
   });
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+
 
   /* ============================
      AUTH + DATA FETCH
@@ -103,13 +112,7 @@ export default function DonorProfilePage() {
       })
       .catch(() => {
         router.replace("/login");
-      });
-
-    // 📦 Fetch activity (optional backend endpoint)
-    fetch(`http://localhost:5050/api/donations?donorId=${userId}`)
-      .then((res) => res.ok ? res.json() : [])
-      .then(setActivity)
-      .catch(() => setActivity([]))
+      })
       .finally(() => setLoading(false));
 
   }, [router]);
@@ -117,6 +120,33 @@ export default function DonorProfilePage() {
   /* ============================
      EDIT HANDLERS
   ============================ */
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") {
+      setDeleteError("Please type DELETE to confirm");
+      return;
+    }
+  
+    try {
+      const res = await fetch("http://localhost:5050/api/account/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: profile?.user.id }),
+      });
+  
+      if (!res.ok) {
+        throw new Error("Delete failed");
+      }
+  
+      // ✅ Success
+      localStorage.clear();
+      router.replace("/");
+    } catch (err) {
+      setDeleteError("Failed to delete account. Please try again.");
+    }
+  };
+  
+  
+
 
   const handleSave = async () => {
     if (!profile) return;
@@ -280,53 +310,176 @@ export default function DonorProfilePage() {
                     </div>
                   ) : (
                     <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-2xl font-bold">{user.full_name}</h2>
-                        <Badge>Donor</Badge>
-                      </div>
+  {/* Name + Badge + Edit button */}
+  <div className="flex items-start justify-between mb-4">
+    <div className="flex items-center gap-3">
+      <h2 className="text-2xl font-bold">{user.full_name}</h2>
+      <Badge className="bg-primary text-primary-foreground">
+        Donor
+      </Badge>
+    </div>
 
-                      <p className="flex gap-2 text-muted-foreground"><Mail /> {user.email}</p>
-                      {user.phone && <p className="flex gap-2 text-muted-foreground"><Phone /> {user.phone}</p>}
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => setIsEditing(true)}
+      className="border-primary text-primary hover:bg-primary hover:text-white"
+    >
+      <Edit3 className="w-4 h-4 mr-2" />
+      Edit Profile
+    </Button>
+  </div>
 
-                      <Button
-                        variant="outline"
-                        className="mt-4"
-                        onClick={() => setIsEditing(true)}
-                      >
-                        <Edit3 className="mr-2" /> Edit Profile
-                      </Button>
-                    </div>
+  {/* Email */}
+  <div className="flex items-center gap-3 text-muted-foreground mb-2">
+    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+      <Mail className="w-4 h-4" />
+    </div>
+    <div>
+      <p className="text-xs">Email</p>
+      <p className="font-medium text-foreground">{user.email}</p>
+    </div>
+  </div>
+
+  {/* Phone */}
+  {user.phone && (
+    <div className="flex items-center gap-3 text-muted-foreground">
+      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+        <Phone className="w-4 h-4" />
+      </div>
+      <div>
+        <p className="text-xs">Phone</p>
+        <p className="font-medium text-foreground">{user.phone}</p>
+      </div>
+    </div>
+  )}
+</div>
+
                   )}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Activity */}
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              <h2 className="text-xl font-bold flex gap-2"><Clock /> Recent Activity</h2>
+          {/* Account Details */}
+          <Card className="shadow-lg">
+            <CardContent className="pt-6">
+              <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
+                <Shield className="w-5 h-5 text-primary" />
+                Account Details
+              </h2>
 
-              {activity.length === 0 && (
-                <p className="text-muted-foreground text-sm">No recent donations yet.</p>
-              )}
-
-              {activity.map((a) => (
-                <div key={a.id} className="flex justify-between p-4 bg-muted rounded-xl">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Account Status */}
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-green-100">
+                  <CheckCircle2 className="w-6 h-6 text-green-600" />
                   <div>
-                    <p className="font-semibold">{a.title}</p>
-                    <p className="text-sm text-muted-foreground flex gap-2">
-                      <MapPin className="w-3 h-3" /> {a.location}
-                    </p>
+                    <p className="text-sm text-muted-foreground">Account Status</p>
+                    <p className="font-semibold text-green-700">
+  {profile ? "Active" : "Inactive"}
+</p>
+
                   </div>
-                  <Badge>{a.status}</Badge>
                 </div>
-              ))}
+
+                {/* Member Since */}
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-muted">
+                  <Calendar className="w-6 h-6 text-primary" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Member Since</p>
+                    <p className="font-semibold">
+  {new Date().toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  })}
+</p>
+
+                  </div>
+                </div>
+
+                {/* Role */}
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-primary/10">
+                  <UserCheck className="w-6 h-6 text-primary" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Role</p>
+                    <p className="font-semibold text-primary">
+  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+</p>
+
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
+          {/* Danger Zone */}
+          <Card className="border-destructive/40">
+            <CardContent className="pt-6">
+              <h2 className="text-xl font-bold text-destructive flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-5 h-5" />
+                Danger Zone
+              </h2>
+
+              <p className="text-muted-foreground mb-4">
+                Deleting your account is permanent. All donations and personal data will be removed.
+              </p>
+
+              <Button
+                variant="outline"
+                className="border-destructive text-destructive hover:bg-destructive hover:text-white"
+                onClick={() => setShowDeleteModal(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Account
+              </Button>
+            </CardContent>
+          </Card>
+
+
         </div>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Delete Account
+            </DialogTitle>
+            <DialogDescription>
+              Type <strong>DELETE</strong> to confirm account deletion.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Input
+            value={deleteConfirmText}
+            onChange={(e) => {
+              setDeleteConfirmText(e.target.value);
+              setDeleteError("");
+            }}
+            placeholder="Type DELETE"
+            className="border-destructive"
+          />
+
+          {deleteError && (
+            <p className="text-sm text-destructive">{deleteError}</p>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => {
+              setShowDeleteModal(false);
+              setDeleteConfirmText("");
+              setDeleteError("");
+            }}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAccount}>
+              Delete My Account
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

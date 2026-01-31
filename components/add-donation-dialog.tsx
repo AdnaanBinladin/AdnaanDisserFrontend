@@ -36,8 +36,22 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { addDonation } from "@/lib/donations"
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api"
+import { toast } from "@/hooks/use-toast"
 
-export function AddDonationDialog({ open, onOpenChange, donorId, onAdded }: any) {
+
+
+
+
+export function AddDonationDialog({
+  open,
+  onOpenChange,
+  donorId,
+  onAdded,
+  donation,
+  isEdit = false,
+}: any)
+ {
+  
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
@@ -55,68 +69,155 @@ export function AddDonationDialog({ open, onOpenChange, donorId, onAdded }: any)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loadingAddress, setLoadingAddress] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+
+  useEffect(() => {
+    if (!open) return
+    if (isEdit && donation) {
+      setTitle(donation.title)
+      setDescription(donation.description || "")
+      setCategory(donation.category)
+      setQuantity(String(donation.quantity))
+      setUnit(donation.unit)
+      setExpiryDate(new Date(donation.expiry_date))
+      setPickupAddress(donation.pickup_address)
+      setPickupInstructions(donation.pickup_instructions || "")
+      setUrgency(donation.urgency)
+  
+      if (donation.pickup_lat && donation.pickup_lng) {
+        setPickupLocation({
+          lat: donation.pickup_lat,
+          lng: donation.pickup_lng,
+        })
+        setHasMovedPin(true)
+      }
+    }
+  }, [open, isEdit, donation])
+  
 
   // ✅ Load Google Maps API
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+    libraries: ["places", "maps"],
   })
 
   // 🌍 Reverse Geocoding (to show address)
-  const fetchAddressFromCoords = async (lat: number, lng: number) => {
+  const fetchDistrictFromCoords = async (lat: number, lng: number) => {
     setLoadingAddress(true)
+  
     try {
       const res = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
       )
+  
       const data = await res.json()
-      if (data.results && data.results.length > 0) {
-        setPickupAddress(data.results[0].formatted_address)
-      } else {
-        setPickupAddress("Address not found")
+  
+      if (data.status === "OK" && Array.isArray(data.results)) {
+        for (const result of data.results) {
+          const district = result.address_components.find(
+            (c: any) =>
+              c.types.includes("administrative_area_level_1") &&
+              c.long_name.toLowerCase().includes("district")
+          )
+  
+          if (district) {
+            setPickupAddress(district.long_name)
+  
+            // ✅ clear error
+            setErrors(prev => ({
+              ...prev,
+              pickupAddress: ""
+            }))
+            return
+          }
+        }
       }
-    } catch (err) {
-      setPickupAddress("Error fetching address")
+  
+      setPickupAddress("Address not found")
+    } catch {
+      setPickupAddress("Address not found")
     } finally {
       setLoadingAddress(false)
     }
   }
+  
+  
+  
 
   // 📍 Auto-detect location
   const handleUseMyLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude
-          const lng = position.coords.longitude
-          setPickupLocation({ lat, lng })
-          setHasMovedPin(true)
-          fetchAddressFromCoords(lat, lng)
-        },
-        () => alert("Unable to fetch your location.")
-      )
-    } else {
+    if (!navigator.geolocation) {
       alert("Geolocation not supported by this browser.")
+      return
     }
+  
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude
+        const lng = position.coords.longitude
+  
+        setHasMovedPin(true)
+        setPickupLocation({ lat, lng })
+  
+        // ✅ clear map-related errors immediately
+        setErrors(prev => ({
+          ...prev,
+          pickupLocation: "",
+          pickupAddress: ""
+        }))
+  
+        // 🌍 fetch district after state update
+        fetchDistrictFromCoords(lat, lng)
+      },
+      () => {
+        alert("Unable to fetch your location.")
+      }
+    )
   }
+  
 
   // 🗺️ Map events
   const handleMapClick = (e: google.maps.MapMouseEvent) => {
     if (!e.latLng) return
+  
     const lat = e.latLng.lat()
     const lng = e.latLng.lng()
-    setPickupLocation({ lat, lng })
+  
     setHasMovedPin(true)
-    fetchAddressFromCoords(lat, lng)
+    setPickupLocation({ lat, lng })
+  
+    // ✅ clear errors immediately
+    setErrors(prev => ({
+      ...prev,
+      pickupLocation: "",
+      pickupAddress: ""
+    }))
+  
+    setTimeout(() => fetchDistrictFromCoords(lat, lng), 0)
   }
-
+  
+  
   const handleDragEnd = (e: google.maps.MapMouseEvent) => {
     if (!e.latLng) return
+  
     const lat = e.latLng.lat()
     const lng = e.latLng.lng()
-    setPickupLocation({ lat, lng })
+  
     setHasMovedPin(true)
-    fetchAddressFromCoords(lat, lng)
+    setPickupLocation({ lat, lng })
+  
+    // ✅ clear errors immediately
+    setErrors(prev => ({
+      ...prev,
+      pickupLocation: "",
+      pickupAddress: ""
+    }))
+  
+    setTimeout(() => fetchDistrictFromCoords(lat, lng), 0)
   }
+  
+  
 
   // ✨ AI Suggest Description
   const handleSuggestDescription = async () => {
@@ -168,40 +269,111 @@ export function AddDonationDialog({ open, onOpenChange, donorId, onAdded }: any)
   }, [category, expiryDate]);
   
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+  
+    if (!title.trim()) newErrors.title = "Title is required"
+    if (!category) newErrors.category = "Please select a category"
+  
+    if (!quantity) {
+      newErrors.quantity = "Quantity is required"
+    } else if (Number(quantity) <= 0) {
+      newErrors.quantity = "Quantity must be greater than zero"
+    }
+  
+    if (!unit) newErrors.unit = "Please select a unit"
+    if (!expiryDate) newErrors.expiryDate = "Expiry date is required"
+  
+    if (!hasMovedPin) {
+      newErrors.pickupLocation = "Please select a pickup location on the map"
+    }
+  
+    if (!pickupAddress || pickupAddress === "Address not found") {
+      newErrors.pickupAddress = "Pickup address could not be resolved"
+    }
+  
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+  
+
   // 💾 Submit form
   const handleSubmit = async (e: any) => {
     e.preventDefault()
-    if (!title || !category || !quantity || !unit || !expiryDate) return
-    if (!hasMovedPin) {
-      alert("Please select a pickup location by clicking or moving the pin on the map.")
+
+    if (!validateForm()) return
+
+    if (loadingAddress) {
+      setErrors(prev => ({
+        ...prev,
+        pickupAddress: "Please wait while the address is being resolved"
+      }))
       return
     }
 
     setIsSubmitting(true)
-    const donation = {
+  
+    const payload = {
       donor_id: donorId,
       title,
       description,
       category,
       quantity,
       unit,
-      expiry_date: format(expiryDate, "yyyy-MM-dd"),
+      expiry_date: expiryDate ? format(expiryDate, "yyyy-MM-dd") : "",
       pickup_lat: pickupLocation.lat,
       pickup_lng: pickupLocation.lng,
       pickup_address: pickupAddress,
       pickup_instructions: pickupInstructions,
       urgency: computeUrgency(),
-
     }
+    
+  
+    try {
+      let res
+    
+      if (isEdit && donation) {
+        // ✏️ EDIT
+        res = await fetch(
+          `http://localhost:5050/api/donations/${donation.id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }
+        )
+      } else {
+        // ➕ ADD
+        res = await addDonation(payload)
+      }
+    
+      const result = res?.json ? await res.json() : res
+    
+      if (result?.data) {
+        onAdded(result.data[0])
+        onOpenChange(false)
+        resetForm()
+        setErrors({})
 
-    const res = await addDonation(donation)
-    setIsSubmitting(false)
-    if (res.data) {
-      onAdded(res.data[0])
-      onOpenChange(false)
-      resetForm()
+        toast({
+          title: isEdit ? "Donation updated" : "Donation added",
+          description: isEdit
+            ? "Your donation was updated successfully."
+            : "Your donation is now visible to NGOs.",
+        })
+      }
+    } catch {
+      toast({
+        title: "Action failed",
+        description: "Please check your details and try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
+    
   }
+  
 
   const resetForm = () => {
     setTitle("")
@@ -217,6 +389,14 @@ export function AddDonationDialog({ open, onOpenChange, donorId, onAdded }: any)
     setUrgency("medium")
   }
 
+  useEffect(() => {
+    if (open && !isEdit) {
+      resetForm()
+      setErrors({})
+    }
+  }, [open, isEdit])
+  
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto bg-gradient-to-br from-orange-50 via-red-50 to-green-50 border-4 border-orange-300 relative -translate-y-[950px] md:-translate-y-[1000px] rounded-xl shadow-2xl transition-transform duration-300 ease-out scroll-smooth" >
@@ -224,9 +404,11 @@ export function AddDonationDialog({ open, onOpenChange, donorId, onAdded }: any)
         <Carrot className="absolute bottom-4 left-4 h-20 w-20 text-orange-500 opacity-10 -rotate-12" />
 
         <DialogHeader className="bg-gradient-to-r from-orange-500 via-red-500 to-green-500 -mx-6 -mt-6 px-6 py-4 mb-4 rounded-t-lg">
-          <DialogTitle className="flex items-center gap-2 text-white text-xl">
-            <Package className="h-6 w-6" /> Add New Donation
-          </DialogTitle>
+        <DialogTitle className="flex items-center gap-2 text-white text-xl">
+  <Package className="h-6 w-6" />
+  {isEdit ? "Edit Donation" : "Add New Donation"}
+</DialogTitle>
+
           <DialogDescription className="text-white/90">
             Provide complete details for your donation
           </DialogDescription>
@@ -238,19 +420,37 @@ export function AddDonationDialog({ open, onOpenChange, donorId, onAdded }: any)
             <Label className="text-orange-700 font-semibold">Title</Label>
             <Input
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value)
+                setErrors(prev => ({ ...prev, title: "" }))
+              }}
               required
               placeholder="e.g. Fresh Apples"
-              className="border-2 border-orange-300 focus:border-orange-500 bg-white"
+              className={cn(
+                "border-2 bg-white",
+                errors.title ? "border-red-500" : "border-orange-300"
+              )}
             />
+            {errors.title && (
+              <p className="text-sm text-red-600">{errors.title}</p>
+            )}
           </div>
 
           {/* CATEGORY + URGENCY */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-red-700 font-semibold">Category</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="border-2 border-red-300 bg-white">
+              <Select 
+                value={category} 
+                onValueChange={(value) => {
+                  setCategory(value)
+                  setErrors(prev => ({ ...prev, category: "" }))
+                }}
+              >
+                <SelectTrigger className={cn(
+                  "border-2 bg-white",
+                  errors.category ? "border-red-500" : "border-red-300"
+                )}>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -263,6 +463,9 @@ export function AddDonationDialog({ open, onOpenChange, donorId, onAdded }: any)
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.category && (
+                <p className="text-sm text-red-600">{errors.category}</p>
+              )}
             </div>
             
 
@@ -286,17 +489,47 @@ export function AddDonationDialog({ open, onOpenChange, donorId, onAdded }: any)
             <div className="space-y-2">
               <Label className="text-teal-700 font-semibold">Quantity</Label>
               <Input
-                type="number"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                required
-                className="border-2 border-teal-300 bg-white"
-              />
+  type="number"
+  min={1}
+  step={1}
+  value={quantity}
+  onChange={(e) => {
+    const val = e.target.value
+    setQuantity(val)
+
+    // 🔴 Live validation
+    if (!val) {
+      setErrors(prev => ({ ...prev, quantity: "Quantity is required" }))
+    } else if (Number(val) <= 0) {
+      setErrors(prev => ({ ...prev, quantity: "Quantity must be greater than zero" }))
+    } else {
+      setErrors(prev => ({ ...prev, quantity: "" }))
+    }
+  }}
+  className={cn(
+    "border-2 bg-white",
+    errors.quantity ? "border-red-500" : "border-teal-300"
+  )}
+/>
+
+{errors.quantity && (
+  <p className="text-sm text-red-600">{errors.quantity}</p>
+)}
+
             </div>
             <div className="space-y-2">
               <Label className="text-emerald-700 font-semibold">Unit</Label>
-              <Select value={unit} onValueChange={setUnit}>
-                <SelectTrigger className="border-2 border-emerald-300 bg-white">
+              <Select 
+                value={unit} 
+                onValueChange={(value) => {
+                  setUnit(value)
+                  setErrors(prev => ({ ...prev, unit: "" }))
+                }}
+              >
+                <SelectTrigger className={cn(
+                  "border-2 bg-white",
+                  errors.unit ? "border-red-500" : "border-emerald-300"
+                )}>
                   <SelectValue placeholder="Select unit" />
                 </SelectTrigger>
                 <SelectContent>
@@ -306,6 +539,9 @@ export function AddDonationDialog({ open, onOpenChange, donorId, onAdded }: any)
                   <SelectItem value="boxes">Boxes</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.unit && (
+                <p className="text-sm text-red-600">{errors.unit}</p>
+              )}
             </div>
           </div>
 
@@ -317,7 +553,8 @@ export function AddDonationDialog({ open, onOpenChange, donorId, onAdded }: any)
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-full justify-start text-left border-2 border-orange-300 bg-white",
+                    "w-full justify-start text-left border-2 bg-white",
+                    errors.expiryDate ? "border-red-500" : "border-orange-300",
                     !expiryDate && "text-muted-foreground"
                   )}
                 >
@@ -326,64 +563,74 @@ export function AddDonationDialog({ open, onOpenChange, donorId, onAdded }: any)
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="p-0">
-                <Calendar
-                  mode="single"
-                  selected={expiryDate}
-                  onSelect={setExpiryDate}
-                  initialFocus
-                />
+              <Calendar
+  mode="single"
+  selected={expiryDate}
+  onSelect={(date) => {
+    if (date) {
+      setExpiryDate(date)
+      setErrors(prev => ({ ...prev, expiryDate: "" }))
+    }
+  }}
+  disabled={(date) => date <= new Date()}
+  initialFocus
+/>
+
               </PopoverContent>
             </Popover>
+            {errors.expiryDate && (
+              <p className="text-sm text-red-600">{errors.expiryDate}</p>
+            )}
           </div>
 
           {/* MAP PICKER */}
-          <div className="space-y-2">
-            <Label className="text-red-700 font-semibold flex items-center gap-1">
-              <MapPin className="h-4 w-4" /> Pickup Location
-            </Label>
+<div className="space-y-2">
+  <Label className="text-red-700 font-semibold flex items-center gap-1">
+    <MapPin className="h-4 w-4" /> Pickup Location
+  </Label>
 
-            {isLoaded ? (
-              <>
-                <div className="relative border-2 border-red-300 rounded-lg overflow-hidden">
-                  <GoogleMap
-                    mapContainerStyle={{ width: "100%", height: "200px", borderRadius: "12px" }}
-                    center={pickupLocation}
-                    zoom={13}
-                    onClick={handleMapClick}
-                  >
-                    <Marker position={pickupLocation} draggable onDragEnd={handleDragEnd} />
-                  </GoogleMap>
-                </div>
+  {isLoaded ? (
+    <>
+      {/* 🗺️ MAP */}
+      <div className="relative border-2 border-red-300 rounded-lg overflow-hidden">
+        <GoogleMap
+          mapContainerStyle={{ width: "100%", height: "250px", borderRadius: "12px" }}
+          center={pickupLocation}
+          zoom={14}
+          onClick={handleMapClick}
+        >
+          {/* 📍 MARKER */}
+          <Marker
+            position={pickupLocation}
+            draggable
+            onDragEnd={handleDragEnd}
+          />
+        </GoogleMap>
+      </div>
 
-                <div className="flex justify-between text-xs text-gray-600 mt-1">
-                  <p>
-                    Lat: {pickupLocation.lat.toFixed(5)}, Lng: {pickupLocation.lng.toFixed(5)}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleUseMyLocation}
-                    className="flex items-center gap-1 text-blue-600 border-blue-300"
-                  >
-                    <LocateFixed className="h-4 w-4" /> Use My Location
-                  </Button>
-                </div>
+      <p className="text-xs italic">
+        {loadingAddress && "Fetching address..."}
+        {!loadingAddress && pickupAddress && (
+          <span className="text-green-600">
+            📍 District: {pickupAddress} | Lat: {pickupLocation.lat.toFixed(6)}, Lng: {pickupLocation.lng.toFixed(6)}
+          </span>
+        )}
+        {!loadingAddress && !pickupAddress && (
+          <span>Search or select a location | Lat: {pickupLocation.lat.toFixed(6)}, Lng: {pickupLocation.lng.toFixed(6)}</span>
+        )}
+      </p>
+    </>
+  ) : (
+    <p>Loading map...</p>
+  )}
+  {errors.pickupLocation && (
+    <p className="text-sm text-red-600">{errors.pickupLocation}</p>
+  )}
+  {errors.pickupAddress && (
+    <p className="text-sm text-red-600">{errors.pickupAddress}</p>
+  )}
+</div>
 
-                <p className="text-xs text-gray-600 italic">
-                  {loadingAddress
-                    ? "Fetching address..."
-                    : pickupAddress
-                    ? `📍 ${pickupAddress}`
-                    : hasMovedPin
-                    ? "No address found"
-                    : "Select a location on the map"}
-                </p>
-              </>
-            ) : (
-              <p>Loading map...</p>
-            )}
-          </div>
 
           {/* PICKUP INSTRUCTIONS */}
           <div className="space-y-2">
@@ -431,12 +678,24 @@ export function AddDonationDialog({ open, onOpenChange, donorId, onAdded }: any)
               Cancel
             </Button>
             <Button
-              type="submit"
-              className="flex-1 bg-gradient-to-r from-orange-500 via-red-500 to-green-500 text-white font-semibold shadow-lg"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Adding..." : "Add Donation"}
-            </Button>
+  type="submit"
+  className="flex-1 bg-gradient-to-r from-orange-500 via-red-500 to-green-500 text-white font-semibold shadow-lg"
+  disabled={
+    isSubmitting ||
+    !title ||
+    !category ||
+    !unit ||
+    !expiryDate ||
+    Number(quantity) <= 0 ||
+    loadingAddress
+  }
+>
+{isSubmitting
+  ? isEdit ? "Saving..." : "Adding..."
+  : isEdit ? "Save Changes" : "Add Donation"}
+
+</Button>
+
           </div>
         </form>
       </DialogContent>

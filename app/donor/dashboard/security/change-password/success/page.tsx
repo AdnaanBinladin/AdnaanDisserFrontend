@@ -11,12 +11,21 @@ export default function PasswordChangeSuccessPage() {
 
   useEffect(() => {
     if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
       return () => clearTimeout(timer);
     } else {
-      router.push("/");
+      // 🚪 Redirect to LOGIN (root page)
+      router.replace("/");
+    
+      // 🔐 Clear auth state AFTER navigation starts
+      setTimeout(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+      }, 100);
     }
+    
   }, [countdown, router]);
+  
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-8">

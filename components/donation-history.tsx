@@ -1,4 +1,11 @@
 "use client"
+import { Download } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -26,12 +33,28 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
+
+
 interface DonationHistoryProps {
   onBack: () => void
   foodItems: DonationItem[]
 }
 
-type StatusFilter = "all" | "available" | "cancelled" | "expired" | "claimed"
+type StatusFilter =
+  | "all"
+  | "available"
+  | "claimed"
+  | "completed"
+  | "expired"
+  | "cancelled"
+
+
+
+
+
+
 
 export function DonationHistory({ onBack, foodItems }: DonationHistoryProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
@@ -41,12 +64,16 @@ export function DonationHistory({ onBack, foodItems }: DonationHistoryProps) {
   // --------------------------------------------------
   const normalizeStatus = (status?: string): StatusFilter => {
     const s = (status || "").toLowerCase()
-    if (s === "completed") return "claimed"
+  
+    if (s === "available") return "available"
     if (s === "claimed") return "claimed"
+    if (s === "completed") return "completed"
     if (s === "expired") return "expired"
     if (s === "cancelled") return "cancelled"
+  
     return "available"
   }
+  
 
   // --------------------------------------------------
   // UI helpers
@@ -57,6 +84,9 @@ export function DonationHistory({ onBack, foodItems }: DonationHistoryProps) {
         return <Package className="h-4 w-4" />
       case "claimed":
         return <CheckCircle className="h-4 w-4" />
+        case "completed":
+  return "bg-gradient-to-r from-emerald-500 to-green-600 text-white"
+
       case "expired":
         return <AlertTriangle className="h-4 w-4" />
       case "cancelled":
@@ -102,17 +132,152 @@ export function DonationHistory({ onBack, foodItems }: DonationHistoryProps) {
     )
   }, [sortedItems, statusFilter])
 
+
+
+
+   // --------------------------------------------------
+// DOWNLOAD AS PDF
+// --------------------------------------------------
+const downloadAsPDF = () => {
+  const doc = new jsPDF("p", "mm", "a4")
+
+  // =========================
+  // BRAND HEADER
+  // =========================
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(26)
+  doc.setTextColor(255, 120, 0)
+  doc.text("FoodShare", 14, 20)
+
+  doc.setFontSize(11)
+  doc.setTextColor(120)
+  doc.text("Reducing food waste, one donation at a time", 14, 27)
+
+  // Divider
+  doc.setDrawColor(255, 180, 120)
+  doc.line(14, 31, 196, 31)
+
+  // =========================
+  // REPORT TITLE
+  // =========================
+  doc.setFontSize(18)
+  doc.setTextColor(40)
+  doc.text("Donation History Report", 14, 42)
+
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(11)
+  doc.setTextColor(100)
+  doc.text(
+    `Generated on ${new Date().toLocaleDateString()}`,
+    14,
+    49
+  )
+
+  // =========================
+  // TABLE DATA
+  // =========================
+  const tableData = filteredItems.map((item: DonationItem) => [
+    item.title,
+    item.category,
+    `${item.quantity} ${item.unit}`,
+    item.urgency,
+    normalizeStatus(item.status),
+    item.expiry_date,
+    new Date(item.created_at).toISOString().split("T")[0],
+    item.pickup_address || "N/A",
+  ])
+
+  autoTable(doc, {
+    startY: 56,
+    head: [[
+      "Title",
+      "Category",
+      "Quantity",
+      "Urgency",
+      "Status",
+      "Expiry",
+      "Created",
+      "Pickup Address",
+    ]],
+    body: tableData,
+
+    styles: {
+      font: "helvetica",
+      fontSize: 9,
+      cellPadding: 4,
+      textColor: 60,
+      valign: "middle",
+    },
+
+    headStyles: {
+      fillColor: [255, 140, 0], // FoodShare orange
+      textColor: 255,
+      fontStyle: "bold",
+      halign: "center",
+    },
+
+    bodyStyles: {
+      halign: "left",
+    },
+
+    alternateRowStyles: {
+      fillColor: [248, 248, 248],
+    },
+
+    columnStyles: {
+      2: { halign: "center" }, // Quantity
+      3: { halign: "center" }, // Urgency
+      4: { halign: "center" }, // Status
+      5: { halign: "center" }, // Expiry
+      6: { halign: "center" }, // Created
+    },
+  })
+
+  // =========================
+  // FOOTER
+  // =========================
+  const pageHeight = doc.internal.pageSize.height
+  doc.setDrawColor(220)
+  doc.line(14, pageHeight - 20, 196, pageHeight - 20)
+
+  doc.setFontSize(9)
+  doc.setTextColor(120)
+  doc.text(
+    "This document contains personal donation data generated from FoodShare.",
+    14,
+    pageHeight - 14
+  )
+
+  doc.text(
+    "© FoodShare – For personal use only",
+    14,
+    pageHeight - 9
+  )
+
+  doc.save("foodshare-donation-history.pdf")
+}
+
+
   // --------------------------------------------------
   // COUNTS (fixed to match real data)
   // --------------------------------------------------
   const counts = useMemo(() => {
-    const c = { available: 0, cancelled: 0, expired: 0, claimed: 0 }
+    const c = {
+      available: 0,
+      claimed: 0,
+      completed: 0,
+      expired: 0,
+      cancelled: 0,
+    }
+    
     for (const it of foodItems) {
       const s = normalizeStatus(it.status)
       if (s === "available") c.available++
       else if (s === "cancelled") c.cancelled++
       else if (s === "expired") c.expired++
       else if (s === "claimed") c.claimed++
+else if (s === "completed") c.completed++
+
     }
     return c
   }, [foodItems])
@@ -177,6 +342,10 @@ export function DonationHistory({ onBack, foodItems }: DonationHistoryProps) {
                   <SelectItem value="claimed">
                     Claimed ({counts.claimed})
                   </SelectItem>
+                  <SelectItem value="completed">
+  Completed ({counts.completed})
+</SelectItem>
+
                   <SelectItem value="expired">
                     Expired ({counts.expired})
                   </SelectItem>
@@ -193,6 +362,26 @@ export function DonationHistory({ onBack, foodItems }: DonationHistoryProps) {
               >
                 Reset
               </Button>
+              <TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <button
+        onClick={downloadAsPDF}
+        className="p-2 rounded-lg bg-white border border-orange-300
+                   hover:bg-orange-50 transition"
+        aria-label="Download donation history as PDF"
+      >
+        <Download className="h-5 w-5 text-orange-600" />
+      </button>
+    </TooltipTrigger>
+
+    <TooltipContent side="bottom">
+      <p>Download donation history as PDF</p>
+    </TooltipContent>
+  </Tooltip>
+</TooltipProvider>
+
+
             </div>
           </div>
         </div>

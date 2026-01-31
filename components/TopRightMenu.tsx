@@ -28,7 +28,7 @@ export default function TopRightMenu() {
 
   const handleLogout = () => {
     localStorage.clear()
-    router.push("/login")
+    router.push("/")
   }
 
   if (!role) return null // safety guard
