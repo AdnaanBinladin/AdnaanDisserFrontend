@@ -44,6 +44,7 @@ interface Donation {
   id: string;
   itemName: string;
   quantity: string;
+  unit: "kg" | "pieces" | "liters" | "boxes";
   donorName: string;
   donorPhone?: string;
   location: string;
@@ -72,6 +73,22 @@ const openWhatsApp = (phone?: string, donorName?: string) => {
 };
 
 
+const getUnitIcon = (unit: Donation["unit"]) => {
+  switch (unit) {
+    case "kg":
+      return "⚖️";
+    case "pieces":
+      return "🔢";
+    case "liters":
+      return "🧴";
+    case "boxes":
+      return "📦";
+    default:
+      return "📦";
+  }
+};
+
+
 // ---------------------------
 // MAIN COMPONENT
 // ---------------------------
@@ -80,11 +97,16 @@ export function NgoDashboard() {
   const [availableCount, setAvailableCount] = useState(0);
   const [claimedCount, setClaimedCount] = useState(0);
   const [urgentCount, setUrgentCount] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+const [cancelledCount, setCancelledCount] = useState(0);
+
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [expiryFilter, setExpiryFilter] = useState("all");
   const [itemFilter, setItemFilter] = useState("all");
+  const [districtFilter, setDistrictFilter] = useState("all");
+
 
   // Lists
   const [rawAvailable, setRawAvailable] = useState<Donation[]>([]);
@@ -97,7 +119,7 @@ export function NgoDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [claimingId, setClaimingId] = useState<string | null>(null);
-
+  const filterClass = "h-11 w-full border-2 bg-white";
 
 
   // ---------------------------
@@ -132,7 +154,9 @@ export function NgoDashboard() {
       const mappedAvailable = data.available.map((d: any) => ({
         id: d.id,
         itemName: d.title,
-        quantity: `${d.quantity} ${d.unit}`,
+        quantity: d.quantity,
+unit: d.unit,
+
         expiryDate: d.expiry_date,
         donorName: "Unknown Donor",
         location: d.pickup_address || "Address not found",
@@ -144,7 +168,9 @@ export function NgoDashboard() {
         data.claimed?.map((d: any) => ({
           id: d.id,
           itemName: d.title,
-          quantity: `${d.quantity} ${d.unit}`,
+          quantity: d.quantity,
+unit: d.unit,
+
           expiryDate: d.expiry_date,
           donorName: d.donor_name || "Donor not found",
           donorPhone: d.donor_phone || "Phone not found",
@@ -155,6 +181,11 @@ export function NgoDashboard() {
       setRawAvailable(mappedAvailable);
       setFilteredAvailableDonations(mappedAvailable);
       setClaimedDonations(mappedClaimed);
+
+      setCompletedCount(data.completed?.length || 0);
+      setCancelledCount(data.cancelled?.length || 0);
+
+      
   
       setAvailableCount(mappedAvailable.length);
       setClaimedCount(mappedClaimed.length);
@@ -191,7 +222,7 @@ export function NgoDashboard() {
   // ---------------------------
   useEffect(() => {
     applyFilters();
-  }, [searchTerm, expiryFilter, itemFilter, rawAvailable]);
+  }, [searchTerm, expiryFilter, itemFilter, districtFilter, rawAvailable]);
 
   const applyFilters = () => {
     let list = [...rawAvailable];
@@ -211,14 +242,31 @@ export function NgoDashboard() {
       list = list.filter((d) => deriveCategory(d) === itemFilter);
     }
 
+    // District filter
+    if (districtFilter !== "all") {
+      const cleanDistrict = districtFilter
+        .replace(" District", "")
+        .toLowerCase();
+    
+      list = list.filter((d) =>
+        d.location.toLowerCase().includes(cleanDistrict)
+      );
+    }
+    
+
+
     // Expiry
     if (expiryFilter !== "all") {
       const now = new Date();
       list = list.filter((d) => {
-        const exp = new Date(d.expiryDate);
+        const exp = new Date(d.expiryDate + "T23:59:59");
+
         const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
 
-        if (expiryFilter === "urgent") return diff <= 2;
+        if (expiryFilter === "urgent") {
+          return diff >= 0 && diff <= 2;
+        }
+        
         if (expiryFilter === "week") return diff <= 7;
         if (expiryFilter === "month") return diff <= 30;
 
@@ -285,12 +333,40 @@ export function NgoDashboard() {
       {/* HEADER */}
       <div className="mb-8 bg-gradient-to-r from-orange-500 via-red-500 to-green-500 rounded-2xl p-8 shadow-lg">
   <div className="flex justify-between items-center">
+    {/* LEFT */}
     <div>
       <h1 className="text-3xl font-bold text-white flex items-center gap-3">
         <Package className="w-8 h-8" />
         NGO Dashboard
       </h1>
-      <p className="text-white/90">Browse and claim food donations</p>
+      <p className="text-white/90">
+        Browse and claim food donations
+      </p>
+    </div>
+
+    {/* RIGHT ACTIONS */}
+    <div className="flex gap-3">
+      {/* MY CLAIMS */}
+      <Button
+        variant="secondary"
+        className="bg-white/90 text-orange-600 hover:bg-white"
+        onClick={() => window.location.href = "/ngo/dashboard/claims"}
+      >
+        📦 My Claims
+      </Button>
+
+      {/* IMPACT */}
+      <Button
+        variant="outline"
+        className="border-white text-white hover:bg-white/10"
+        onClick={() => {
+          document.getElementById("impact-section")?.scrollIntoView({
+            behavior: "smooth",
+          })
+        }}
+      >
+        📊 Impact
+      </Button>
     </div>
 
     <TopRightMenu />
@@ -301,40 +377,71 @@ export function NgoDashboard() {
 
 
         {/* STATS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="border-2 border-orange-500 bg-orange-50">
-            <CardHeader>
-              <CardTitle className="text-orange-700">Available Donations</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
-                {availableCount}
-              </div>
-            </CardContent>
-          </Card>
+        {/* STATS */}
+<div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
 
-          <Card className="border-2 border-green-500 bg-green-50">
-            <CardHeader>
-              <CardTitle className="text-green-700">Claimed by You</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {claimedCount}
-              </div>
-            </CardContent>
-          </Card>
+{/* AVAILABLE */}
+<Card className="border-2 border-orange-500 bg-orange-50">
+  <CardHeader>
+    <CardTitle className="text-orange-700">Available</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <div className="text-2xl font-bold text-orange-600">
+      {availableCount}
+    </div>
+  </CardContent>
+</Card>
 
-          <Card className="border-2 border-red-500 bg-red-50">
-            <CardHeader>
-              <CardTitle className="text-red-700">Urgent Items</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {urgentCount}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+{/* CLAIMED */}
+<Card className="border-2 border-green-500 bg-green-50">
+  <CardHeader>
+    <CardTitle className="text-green-700">Claimed</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <div className="text-2xl font-bold text-green-600">
+      {claimedCount}
+    </div>
+  </CardContent>
+</Card>
+
+{/* COMPLETED */}
+<Card className="border-2 border-emerald-500 bg-emerald-50">
+  <CardHeader>
+    <CardTitle className="text-emerald-700">Completed</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <div className="text-2xl font-bold text-emerald-600">
+      {completedCount}
+    </div>
+  </CardContent>
+</Card>
+
+{/* CANCELLED */}
+<Card className="border-2 border-slate-500 bg-slate-50">
+  <CardHeader>
+    <CardTitle className="text-slate-700">Cancelled</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <div className="text-2xl font-bold text-slate-600">
+      {cancelledCount}
+    </div>
+  </CardContent>
+</Card>
+
+{/* URGENT */}
+<Card className="border-2 border-red-500 bg-red-50">
+  <CardHeader>
+    <CardTitle className="text-red-700">Urgent</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <div className="text-2xl font-bold text-red-600">
+      {urgentCount}
+    </div>
+  </CardContent>
+</Card>
+
+</div>
+
 
 
         {/* TABS */}
@@ -356,22 +463,24 @@ export function NgoDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+
 
                   {/* SEARCH */}
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-orange-500" />
                     <Input
-                      placeholder="Search..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 border-2 border-orange-300"
-                    />
+  placeholder="Search..."
+  value={searchTerm}
+  onChange={(e) => setSearchTerm(e.target.value)}
+  className={`${filterClass} pl-10 border-orange-300`}
+/>
+
                   </div>
 
                   {/* CATEGORY */}
                   <Select value={itemFilter} onValueChange={setItemFilter}>
-                    <SelectTrigger className="border-2 border-purple-300">
+                  <SelectTrigger className={`${filterClass} border-purple-300`}>
                       <SelectValue placeholder="Item type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -386,9 +495,29 @@ export function NgoDashboard() {
                     </SelectContent>
                   </Select>
 
+                  {/* DISTRICT FILTER */}
+<Select value={districtFilter} onValueChange={setDistrictFilter}>
+<SelectTrigger className={`${filterClass} border-blue-300`}>
+    <SelectValue placeholder="District" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="all">All Districts</SelectItem>
+    <SelectItem value="Black River District">Black River</SelectItem>
+    <SelectItem value="Flacq District">Flacq</SelectItem>
+    <SelectItem value="Grand Port District">Grand Port</SelectItem>
+    <SelectItem value="Moka District">Moka</SelectItem>
+    <SelectItem value="Pamplemousses District">Pamplemousses</SelectItem>
+    <SelectItem value="Plaines Wilhems District">Plaines Wilhems</SelectItem>
+    <SelectItem value="Port Louis District">Port Louis</SelectItem>
+    <SelectItem value="Rivière du Rempart District">Rivière du Rempart</SelectItem>
+    <SelectItem value="Savanne District">Savanne</SelectItem>
+  </SelectContent>
+</Select>
+
+
                   {/* EXPIRY FILTER */}
                   <Select value={expiryFilter} onValueChange={setExpiryFilter}>
-                    <SelectTrigger className="border-2 border-green-300">
+                  <SelectTrigger className={`${filterClass} border-green-300`}>
                       <SelectValue placeholder="Expiry" />
                     </SelectTrigger>
                     <SelectContent>
@@ -401,16 +530,19 @@ export function NgoDashboard() {
 
                   {/* CLEAR */}
                   <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSearchTerm("");
-                      setItemFilter("all");
-                      setExpiryFilter("all");
-                    }}
-                    className="border-2 border-teal-500 text-teal-700"
-                  >
-                    Clear Filters
-                  </Button>
+  variant="ghost"
+  size="sm"
+  onClick={() => {
+    setSearchTerm("");
+    setItemFilter("all");
+    setDistrictFilter("all");
+    setExpiryFilter("all");
+  }}
+  className="h-10 text-teal-700 hover:bg-teal-100"
+>
+  Clear
+</Button>
+
 
                 </div>
               </CardContent>
@@ -445,42 +577,69 @@ export function NgoDashboard() {
                       className="border-2 border-orange-400 bg-white shadow-lg"
                     >
                       <CardHeader>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-start">
+                          {/* Title */}
                           <CardTitle className="text-lg">
                             {donation.itemName}
                           </CardTitle>
-                          <Badge
-                            className={
-                              urgency.label === "Urgent"
-                                ? "bg-gradient-to-r from-red-500 to-orange-500 text-white"
-                                : urgency.label === "Soon"
-                                ? "bg-gradient-to-r from-orange-500 to-yellow-500 text-white"
-                                : "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-                            }
-                          >
-                            {urgency.label}
-                          </Badge>
+                  
+                          {/* RIGHT SIDE: stacked badges */}
+                          <div className="flex flex-col items-end gap-1">
+                            {/* Urgency badge */}
+                            <Badge
+                              className={
+                                urgency.label === "Urgent"
+                                  ? "bg-gradient-to-r from-red-500 to-orange-500 text-white"
+                                  : urgency.label === "Soon"
+                                  ? "bg-gradient-to-r from-orange-500 to-yellow-500 text-white"
+                                  : "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                              }
+                            >
+                              {urgency.label}
+                            </Badge>
+                  
+                            {/* Category badge (UNDER Normal) */}
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-gray-300 text-gray-700 bg-gray-50"
+                            >
+                              {(donation.category ?? deriveCategory(donation))
+                                .replace("_", " ")
+                                .replace(/\b\w/g, (c) => c.toUpperCase())}
+                            </Badge>
+                          </div>
                         </div>
-                        <CardDescription>
-                          Location: {donation.location}
+                  
+                        {/* District badge (unchanged position) */}
+                        <CardDescription className="flex items-center gap-2">
+                          <Badge className="bg-blue-100 text-blue-700 border border-blue-300">
+                            {donation.location.replace(" District", "")}
+                          </Badge>
                         </CardDescription>
                       </CardHeader>
-
+                  
                       <CardContent className="space-y-2 text-sm">
-                        <p>{donation.quantity}</p>
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+  <span>{getUnitIcon(donation.unit)}</span>
+  <span>
+    {donation.quantity}{" "}
+    {donation.unit.charAt(0).toUpperCase() + donation.unit.slice(1)}
+  </span>
+</div>
+
                         <p>Expires: {donation.expiryDate}</p>
-
+                  
                         <Button
-  onClick={() => handleClaimDonation(donation.id)}
-  disabled={claimingId === donation.id}
-  className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white"
->
-  {claimingId === donation.id ? "Claiming..." : "Claim Donation"}
-</Button>
-
+                          onClick={() => handleClaimDonation(donation.id)}
+                          disabled={claimingId === donation.id}
+                          className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white"
+                        >
+                          {claimingId === donation.id ? "Claiming..." : "Claim Donation"}
+                        </Button>
                       </CardContent>
                     </Card>
                   );
+                  
                 })
               )}
             </div>
