@@ -68,7 +68,9 @@ export interface DonationItem {
   pickup_lng?: number
   pickup_instructions?: string
   urgency: "low" | "medium" | "high"
-  status: "available" | "claimed" | "completed" | "expired" | "cancelled"
+  status: "available" | "claimed" | "completed"
+final_state?: "expired" | "cancelled_by_donor" | "cancelled_by_ngo"
+
   created_at: string
   qr_code?: string  // ✅ base64 QR code image returned from backend
 
@@ -174,12 +176,11 @@ export function DonorDashboard() {
       case "claimed":
       case "completed":
         return <CheckCircle className="h-4 w-4" />
-      case "expired":
-        return <AlertTriangle className="h-4 w-4" />
       default:
         return <Package className="h-4 w-4" />
     }
   }
+  
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -188,25 +189,41 @@ export function DonorDashboard() {
       case "claimed":
       case "completed":
         return "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-      case "expired":
-        return "bg-gradient-to-r from-red-600 to-orange-600 text-white"
       default:
         return "bg-gray-400 text-white"
     }
   }
 
-// ------------------------------------------------------
-// FILTER: Exclude cancelled donations from dashboard
-// ------------------------------------------------------
-const visibleDonations = foodItems.filter((item) => item.status !== "cancelled")
+// SHOW EVERYTHING – NGO cancellation returns to available
+const visibleDonations = foodItems.filter(
+  item => item.final_state !== "cancelled_by_donor"
+)
+
+
+
 
 // ------------------------------------------------------
 // COUNTS
 // ------------------------------------------------------
-const availableCount = visibleDonations.filter((i) => i.status === "available").length
-const claimedCount = visibleDonations.filter((i) => i.status === "claimed").length
-const completedCount = visibleDonations.filter((i) => i.status === "completed").length
-const expiredCount = visibleDonations.filter((i) => i.status === "expired").length
+const availableCount = visibleDonations.filter(
+  (i) => i.status === "available"
+).length
+
+
+const claimedCount = visibleDonations.filter(
+  (i) => i.status === "claimed"
+).length
+
+const completedCount = visibleDonations.filter(
+  (i) => i.status === "completed"
+).length
+
+const expiredCount = visibleDonations.filter(
+  (i) => i.final_state === "expired"
+).length
+
+
+
 const totalCount = visibleDonations.length
 
 
@@ -440,8 +457,9 @@ const stats = [
                   <tbody>
   {visibleDonations.map((item) => {
     // ✅ deletion rules
-    const canDelete =
-      item.status === "available" || item.status === "expired"
+    const canDelete = item.status === "available"
+
+
 
     return (
       <tr
@@ -474,8 +492,8 @@ const stats = [
               item.status
             )} font-semibold shadow-md`}
           >
-            {getStatusIcon(item.status)}
-            {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+{item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+
           </Badge>
         </td>
 
@@ -663,10 +681,18 @@ const stats = [
 
                     if (!res.ok) throw new Error()
 
-                    setFoodItems(prev =>
-                      prev.filter(item => item.id !== deleteTarget.id)
-                    )
-
+                      setFoodItems(prev =>
+                        prev.map(item =>
+                          item.id === deleteTarget.id
+                            ? {
+                                ...item,
+                                final_state: "cancelled_by_donor",
+                              }
+                            : item
+                        )
+                      )
+                      
+                      
                     toast({
                       title: "Donation deleted",
                       description: `"${deleteTarget.title}" was cancelled successfully.`,

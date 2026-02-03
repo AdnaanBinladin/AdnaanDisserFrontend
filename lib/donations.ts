@@ -46,3 +46,34 @@ export {
   addDonation,
   claimDonation,
 };
+
+export const cancelNgoClaim = async (donationId: string, ngoId: string) => {
+  const res = await fetch(
+    `http://localhost:5050/api/ngo/claims/${donationId}/cancel`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ngo_id: ngoId }),
+    }
+  );
+
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to cancel claim");
+  }
+};
+
+
+export const fetchNgoStats = async (ngoId: string) => {
+  const res = await fetch(
+    `http://localhost:5050/api/ngo-dashboard/stats?ngoId=${ngoId}`
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch NGO stats");
+  }
+
+  return res.json();
+};

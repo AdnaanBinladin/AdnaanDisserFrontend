@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Card,
   CardContent,
@@ -17,6 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
 
 import {
   ArrowLeft,
@@ -47,41 +49,154 @@ interface NgoClaim {
 export default function NgoClaimsPage() {
   const [statusFilter, setStatusFilter] = useState<ClaimStatus>("all")
 
-  // 🔧 MOCK DATA (replace later with backend)
-  const claims: NgoClaim[] = [
-    {
-      id: "1",
-      title: "Fresh Apples",
-      category: "Fruits",
-      quantity: 10,
-      unit: "kg",
-      pickup_address: "Port Louis",
-      claimed_at: "2026-02-01",
-      status: "claimed",
-    },
-    {
-      id: "2",
-      title: "Bread Boxes",
-      category: "Grains",
-      quantity: 3,
-      unit: "boxes",
-      pickup_address: "Curepipe",
-      claimed_at: "2026-01-28",
-      completed_at: "2026-01-29",
-      status: "completed",
-    },
-    {
-      id: "3",
-      title: "Milk Bottles",
-      category: "Dairy",
-      quantity: 5,
-      unit: "liters",
-      pickup_address: "Quatre Bornes",
-      claimed_at: "2026-01-25",
-      status: "cancelled",
-    },
-  ]
+  const [claims, setClaims] = useState<NgoClaim[]>([])
+  const [loading, setLoading] = useState(true)
+  
+  const downloadAsPDF = () => {
+    const doc = new jsPDF("p", "mm", "a4")
+  
+    // =========================
+    // BRAND HEADER
+    // =========================
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(26)
+    doc.setTextColor(255, 120, 0)
+    doc.text("FoodShare", 14, 20)
+  
+    doc.setFontSize(11)
+    doc.setTextColor(120)
+    doc.text("Reducing food waste, one donation at a time", 14, 27)
+  
+    // Divider
+    doc.setDrawColor(255, 180, 120)
+    doc.line(14, 31, 196, 31)
+  
+    // =========================
+    // REPORT TITLE
+    // =========================
+    doc.setFontSize(18)
+    doc.setTextColor(40)
+    doc.text("NGO Claim History Report", 14, 42)
+  
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(11)
+    doc.setTextColor(100)
+    doc.text(
+      `Generated on ${new Date().toLocaleDateString()}`,
+      14,
+      49
+    )
+  
+    // =========================
+    // TABLE DATA
+    // =========================
+    const tableData = filteredClaims.map((claim) => [
+      claim.title,
+      claim.category,
+      `${claim.quantity} ${claim.unit}`,
+      claim.status.toUpperCase(),
+      claim.claimed_at,
+      claim.completed_at || "-",
+      claim.pickup_address || "N/A",
+    ])
+  
+    autoTable(doc, {
+      startY: 56,
+      head: [[
+        "Title",
+        "Category",
+        "Quantity",
+        "Status",
+        "Claimed At",
+        "Completed At",
+        "Pickup Address",
+      ]],
+      body: tableData,
+  
+      styles: {
+        font: "helvetica",
+        fontSize: 9,
+        cellPadding: 4,
+        textColor: 60,
+        valign: "middle",
+      },
+  
+      headStyles: {
+        fillColor: [255, 140, 0], // FoodShare orange
+        textColor: 255,
+        fontStyle: "bold",
+        halign: "center",
+      },
+  
+      bodyStyles: {
+        halign: "left",
+      },
+  
+      alternateRowStyles: {
+        fillColor: [248, 248, 248],
+      },
+  
+      columnStyles: {
+        2: { halign: "center" }, // Quantity
+        3: { halign: "center" }, // Status
+        4: { halign: "center" }, // Claimed At
+        5: { halign: "center" }, // Completed At
+      },
+    })
+  
+    // =========================
+    // FOOTER
+    // =========================
+    const pageHeight = doc.internal.pageSize.height
+    doc.setDrawColor(220)
+    doc.line(14, pageHeight - 20, 196, pageHeight - 20)
+  
+    doc.setFontSize(9)
+    doc.setTextColor(120)
+    doc.text(
+      "This document contains NGO claim history generated from FoodShare.",
+      14,
+      pageHeight - 14
+    )
+  
+    doc.text(
+      "© FoodShare – For internal NGO use only",
+      14,
+      pageHeight - 9
+    )
+  
+    doc.save("foodshare-ngo-claim-history.pdf")
+  }
+  
 
+
+  useEffect(() => {
+    fetchClaims()
+  }, [])
+  
+  const fetchClaims = async () => {
+    try {
+      setLoading(true)
+  
+      const ngoId = localStorage.getItem("ngoId")
+      if (!ngoId) return
+  
+      const res = await fetch(
+        `http://localhost:5050/api/ngo/claims/history?ngoId=${ngoId}`
+      )
+  
+      if (!res.ok) throw new Error("Failed to load claim history")
+  
+      const json = await res.json()
+      setClaims(json.data || [])
+  
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+  
   // ---------------------------
   // FILTER
   // ---------------------------
@@ -168,7 +283,7 @@ export default function NgoClaimsPage() {
                 </SelectContent>
               </Select>
 
-              <Button variant="outline" className="bg-white">
+              <Button variant="outline" className="bg-white"   onClick={downloadAsPDF}              >
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </Button>

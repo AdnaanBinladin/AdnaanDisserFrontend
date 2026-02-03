@@ -1,9 +1,10 @@
 "use client";
 
-import { claimDonation } from "@/lib/donations";
-import { MessageCircle } from "lucide-react";
-
+import { claimDonation, cancelNgoClaim } from "@/lib/donations";
+import { BarChart3, MessageCircle } from "lucide-react";
+import { XCircle } from "lucide-react";
 import TopRightMenu from "@/components/TopRightMenu";
+import { fetchNgoStats } from "@/lib/donations";
 
 
 import { useState, useEffect } from "react";
@@ -122,19 +123,38 @@ const [cancelledCount, setCancelledCount] = useState(0);
   const filterClass = "h-11 w-full border-2 bg-white";
 
 
+  const loadStats = async () => {
+    const ngoId = localStorage.getItem("ngoId");
+    if (!ngoId) return;
+  
+    try {
+      const stats = await fetchNgoStats(ngoId);
+  
+      setAvailableCount(stats.available);
+      setClaimedCount(stats.claimed);
+      setCompletedCount(stats.completed);
+      setCancelledCount(stats.cancelled);
+      setUrgentCount(stats.urgent);
+    } catch (err) {
+      console.error("Failed to load NGO stats", err);
+    }
+  };
+  
+
   // ---------------------------
   // Fetch Dashboard Data
   // ---------------------------
   useEffect(() => {
     fetchNgoDashboard();
+    loadStats();
   }, []);
 
   const fetchNgoDashboard = async () => {
     try {
       setLoading(true);
+      setError("");
   
       const ngoId = localStorage.getItem("ngoId");
-  
       if (!ngoId) {
         setError("NGO not logged in");
         return;
@@ -142,21 +162,23 @@ const [cancelledCount, setCancelledCount] = useState(0);
   
       const res = await fetch(
         `http://localhost:5050/api/ngo-dashboard/?ngoId=${ngoId}`,
-        {
-          method: "GET",
-        }
+        { method: "GET" }
       );
   
-      if (!res.ok) throw new Error("Failed to load dashboard data");
+      if (!res.ok) {
+        throw new Error("Failed to load dashboard data");
+      }
   
       const data = await res.json();
   
-      const mappedAvailable = data.available.map((d: any) => ({
+      // ---------------------------
+      // AVAILABLE DONATIONS
+      // ---------------------------
+      const mappedAvailable = (data.available || []).map((d: any) => ({
         id: d.id,
         itemName: d.title,
         quantity: d.quantity,
-unit: d.unit,
-
+        unit: d.unit,
         expiryDate: d.expiry_date,
         donorName: "Unknown Donor",
         location: d.pickup_address || "Address not found",
@@ -164,38 +186,37 @@ unit: d.unit,
         status: d.status,
       }));
   
-      const mappedClaimed =
-        data.claimed?.map((d: any) => ({
+      // ---------------------------
+      // CLAIMED DONATIONS (ACTIVE ONLY)
+      // ---------------------------
+      const mappedClaimed = (data.claimed || [])
+        .filter((d: any) => d.status === "claimed")
+        .map((d: any) => ({
           id: d.id,
           itemName: d.title,
           quantity: d.quantity,
-unit: d.unit,
-
+          unit: d.unit,
           expiryDate: d.expiry_date,
           donorName: d.donor_name || "Donor not found",
-          donorPhone: d.donor_phone || "Phone not found",
+          donorPhone: d.donor_phone || undefined,
           location: d.pickup_address || "Address not found",
           claimedDate: d.claimed_date,
-        })) || [];
+        }));
   
+      // ---------------------------
+      // STATE UPDATES (LISTS ONLY)
+      // ---------------------------
       setRawAvailable(mappedAvailable);
       setFilteredAvailableDonations(mappedAvailable);
       setClaimedDonations(mappedClaimed);
-
-      setCompletedCount(data.completed?.length || 0);
-      setCancelledCount(data.cancelled?.length || 0);
-
-      
-  
-      setAvailableCount(mappedAvailable.length);
-      setClaimedCount(mappedClaimed.length);
-      setUrgentCount(data.urgent?.length || 0);
     } catch (err: any) {
-      setError(err.message);
+      console.error("NGO dashboard load failed:", err);
+      setError(err.message || "Failed to load dashboard");
     } finally {
       setLoading(false);
     }
   };
+  
   
 
   // ---------------------------
@@ -308,6 +329,7 @@ unit: d.unit,
   
       await claimDonation(id, ngoId);
       await fetchNgoDashboard();
+      await loadStats();
     } catch (err: any) {
       alert(err.message || "Failed to claim donation");
     } finally {
@@ -315,6 +337,33 @@ unit: d.unit,
     }
   };
   
+
+// Cancel
+const handleCancelClaim = async (donationId: string) => {
+  const ngoId = localStorage.getItem("ngoId");
+
+  if (!ngoId) {
+    alert("NGO not logged in");
+    return;
+  }
+
+  const confirmed = confirm(
+    "Are you sure you want to cancel this claim?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await cancelNgoClaim(donationId, ngoId);
+    await fetchNgoDashboard(); // refresh UI
+    await loadStats
+  } catch (err: any) {
+    alert(err.message || "Failed to cancel claim");
+  }
+};
+
+
+
 
 
   // ---------------------------
@@ -344,30 +393,30 @@ unit: d.unit,
       </p>
     </div>
 
-    {/* RIGHT ACTIONS */}
-    <div className="flex gap-3">
-      {/* MY CLAIMS */}
-      <Button
-        variant="secondary"
-        className="bg-white/90 text-orange-600 hover:bg-white"
-        onClick={() => window.location.href = "/ngo/dashboard/claims"}
-      >
-        📦 My Claims
-      </Button>
+ {/* Right - Action Buttons */}
+ <div className="flex gap-3">
+              {/* My Claims Button */}
+              <Button
+                className="bg-white text-primary hover:bg-white/90 shadow-lg shadow-black/10 font-semibold px-5 py-2.5 h-auto transition-all hover:scale-105 hover:shadow-xl"
+                onClick={() => window.location.href = "/ngo/dashboard/claims"}
+              >
+                <Package className="w-4 h-4 mr-2" />
+                My Claims
+              </Button>
 
-      {/* IMPACT */}
-      <Button
-        variant="outline"
-        className="border-white text-white hover:bg-white/10"
-        onClick={() => {
-          document.getElementById("impact-section")?.scrollIntoView({
-            behavior: "smooth",
-          })
-        }}
-      >
-        📊 Impact
-      </Button>
-    </div>
+              {/* Impact Button */}
+              <Button
+  variant="outline"
+  className="border-2 border-white/70 bg-transparent text-white hover:bg-white hover:text-primary font-semibold px-5 py-2.5 h-auto transition-all hover:scale-105 backdrop-blur-sm"
+  onClick={() => {
+    window.location.href = "/ngo/dashboard/impacts"
+  }}
+>
+  <BarChart3 className="w-4 h-4 mr-2" />
+  Impact
+</Button>
+
+            </div>
 
     <TopRightMenu />
   </div>
@@ -671,53 +720,62 @@ unit: d.unit,
         <div className="space-y-4">
           {claimedDonations.map((donation) => (
             <div
-              key={donation.id}
-              className="p-4 border-l-4 border-green-500 bg-white rounded-md shadow-sm space-y-2"
-            >
-              {/* TITLE */}
-              <h4 className="font-semibold text-lg text-green-700">
-                {donation.itemName}
-              </h4>
-
-              {/* QUANTITY */}
-              <p className="text-sm">
-                Quantity: <span className="font-medium">{donation.quantity}</span>
-              </p>
-
-              {/* PICKUP ADDRESS */}
-              <p className="text-sm text-gray-700">
-                📍 Pickup Address:
-                <br />
-                <span className="font-medium">
-                  {donation.location || "Address not provided"}
-                </span>
-              </p>
-
-              {/* CLAIM DATE */}
-              {donation.claimedDate && (
-                <p className="text-xs text-gray-500">
-                  Claimed on:{" "}
-                  {new Date(donation.claimedDate).toLocaleDateString()}
-                </p>
-              )}
-
-              {/* ACTIONS */}
-              <div className="pt-2">
-              <Button
-  variant="outline"
-  size="sm"
-  className="border-green-500 text-green-700 hover:bg-green-100 flex items-center gap-2"
-  onClick={() =>
-    openWhatsApp(donation.donorPhone, donation.donorName)
-  }
-  disabled={!donation.donorPhone}
+  key={donation.id}
+  className="p-4 border-l-4 border-green-500 bg-white rounded-md shadow-sm flex justify-between gap-4"
 >
-  <MessageCircle className="h-4 w-4" />
-  Contact Donor via WhatsApp
-</Button>
+  {/* LEFT CONTENT */}
+  <div className="space-y-2 flex-1">
+    <h4 className="font-semibold text-lg text-green-700">
+      {donation.itemName}
+    </h4>
 
-              </div>
-            </div>
+    <p className="text-sm">
+      Quantity: <span className="font-medium">{donation.quantity}</span>
+    </p>
+
+    <p className="text-sm text-gray-700">
+      📍 Pickup Address:
+      <br />
+      <span className="font-medium">
+        {donation.location || "Address not provided"}
+      </span>
+    </p>
+
+    {donation.claimedDate && (
+      <p className="text-xs text-gray-500">
+        Claimed on:{" "}
+        {new Date(donation.claimedDate).toLocaleDateString()}
+      </p>
+    )}
+
+    <Button
+      variant="outline"
+      size="sm"
+      className="border-green-500 text-green-700 hover:bg-green-100 flex items-center gap-2"
+      onClick={() =>
+        openWhatsApp(donation.donorPhone, donation.donorName)
+      }
+      disabled={!donation.donorPhone}
+    >
+      <MessageCircle className="h-4 w-4" />
+      Contact Donor via WhatsApp
+    </Button>
+  </div>
+
+  {/* RIGHT ACTION */}
+  <div className="flex items-start">
+    <Button
+      variant="destructive"
+      size="sm"
+      className="flex items-center gap-2"
+      onClick={() => handleCancelClaim(donation.id)}
+    >
+      <XCircle className="h-4 w-4" />
+      Cancel
+    </Button>
+  </div>
+</div>
+
           ))}
         </div>
       )}

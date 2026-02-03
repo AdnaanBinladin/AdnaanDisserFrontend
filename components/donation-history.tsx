@@ -62,30 +62,42 @@ export function DonationHistory({ onBack, foodItems }: DonationHistoryProps) {
   // --------------------------------------------------
   // ✅ NORMALIZE STATUS (critical fix)
   // --------------------------------------------------
-  const normalizeStatus = (status?: string): StatusFilter => {
+  const normalizeStatus = (
+    status?: string,
+    final_state?: string
+  ): StatusFilter => {
+    // ❗ donor-only cancellations
+    if (final_state === "cancelled_by_donor") return "cancelled"
+  
+    // ❗ expiry is real final state
+    if (final_state === "expired") return "expired"
+  
+    // ❗ NGO cancellation = available again
     const s = (status || "").toLowerCase()
   
     if (s === "available") return "available"
     if (s === "claimed") return "claimed"
     if (s === "completed") return "completed"
-    if (s === "expired") return "expired"
-    if (s === "cancelled") return "cancelled"
   
     return "available"
   }
+  
+  
   
 
   // --------------------------------------------------
   // UI helpers
   // --------------------------------------------------
-  const getStatusIcon = (status?: string) => {
-    switch (normalizeStatus(status)) {
+  const getStatusIcon = (status?: string, final_state?: string) => {
+    switch (normalizeStatus(status, final_state)) {
+
       case "available":
         return <Package className="h-4 w-4" />
       case "claimed":
         return <CheckCircle className="h-4 w-4" />
         case "completed":
-  return "bg-gradient-to-r from-emerald-500 to-green-600 text-white"
+           return <CheckCircle className="h-4 w-4" />
+
 
       case "expired":
         return <AlertTriangle className="h-4 w-4" />
@@ -96,12 +108,14 @@ export function DonationHistory({ onBack, foodItems }: DonationHistoryProps) {
     }
   }
 
-  const getStatusColor = (status?: string) => {
-    switch (normalizeStatus(status)) {
+  const getStatusColor = (status?: string, final_state?: string) => {
+    switch (normalizeStatus(status, final_state)) {
       case "available":
         return "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
       case "claimed":
         return "bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+      case "completed":
+        return "bg-gradient-to-r from-emerald-600 to-green-600 text-white"
       case "expired":
         return "bg-gradient-to-r from-red-500 to-rose-500 text-white"
       case "cancelled":
@@ -110,6 +124,7 @@ export function DonationHistory({ onBack, foodItems }: DonationHistoryProps) {
         return "bg-gradient-to-r from-gray-400 to-gray-500 text-white"
     }
   }
+  
 
   // --------------------------------------------------
   // SORT (unchanged behavior)
@@ -128,7 +143,7 @@ export function DonationHistory({ onBack, foodItems }: DonationHistoryProps) {
   const filteredItems = useMemo(() => {
     if (statusFilter === "all") return sortedItems
     return sortedItems.filter(
-      (item) => normalizeStatus(item.status) === statusFilter
+      (item) => normalizeStatus(item.status, item.final_state) === statusFilter
     )
   }, [sortedItems, statusFilter])
 
@@ -181,7 +196,7 @@ const downloadAsPDF = () => {
     item.category,
     `${item.quantity} ${item.unit}`,
     item.urgency,
-    normalizeStatus(item.status),
+    normalizeStatus(item.status, item.final_state),
     item.expiry_date,
     new Date(item.created_at).toISOString().split("T")[0],
     item.pickup_address || "N/A",
@@ -271,7 +286,7 @@ const downloadAsPDF = () => {
     }
     
     for (const it of foodItems) {
-      const s = normalizeStatus(it.status)
+      const s = normalizeStatus(it.status, it.final_state)
       if (s === "available") c.available++
       else if (s === "cancelled") c.cancelled++
       else if (s === "expired") c.expired++
@@ -412,10 +427,17 @@ else if (s === "completed") c.completed++
                   <CardHeader>
                     <div className="flex justify-between">
                       <CardTitle>{item.title}</CardTitle>
-                      <Badge className={getStatusColor(item.status)}>
-                        {getStatusIcon(item.status)}
-                        {normalizeStatus(item.status)}
-                      </Badge>
+                      <Badge
+  className={getStatusColor(item.status, item.final_state)}
+>
+  {getStatusIcon(item.status, item.final_state)}
+  {normalizeStatus(item.status, item.final_state)
+  .charAt(0)
+  .toUpperCase() +
+  normalizeStatus(item.status, item.final_state).slice(1)}
+
+</Badge>
+
                     </div>
                     <CardDescription>
                       Added on{" "}
