@@ -267,6 +267,7 @@ const handleRegister = async (e: React.FormEvent) => {
             <User className="absolute left-3 top-3 h-4 w-4 text-green-500" />
             <Input
               type="text"
+              autoComplete="off"
               placeholder="Enter your full name"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -283,6 +284,7 @@ const handleRegister = async (e: React.FormEvent) => {
             <Phone className="absolute left-3 top-3 h-4 w-4 text-green-500" />
             <Input
               type="tel"
+              autoComplete="off"
               placeholder="Enter your phone number"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -299,6 +301,7 @@ const handleRegister = async (e: React.FormEvent) => {
             <Mail className="absolute left-3 top-3 h-4 w-4 text-green-500" />
             <Input
               type="email"
+              autoComplete="off"
               placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -315,6 +318,7 @@ const handleRegister = async (e: React.FormEvent) => {
             <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-green-500" />
             <Input
               type="password"
+              autoComplete="off"
               placeholder="Create a password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -331,6 +335,7 @@ const handleRegister = async (e: React.FormEvent) => {
             <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-green-500" />
             <Input
               type="password"
+              autoComplete="off"
               placeholder="Confirm your password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -352,6 +357,7 @@ const handleRegister = async (e: React.FormEvent) => {
             <User className="absolute left-3 top-3 h-4 w-4 text-green-500" />
             <Input
               type="text"
+              autoComplete="off"
               placeholder="Enter organization name"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -366,6 +372,7 @@ const handleRegister = async (e: React.FormEvent) => {
           <Label>Address</Label>
           <Input
             type="text"
+            autoComplete="off"
             placeholder="Enter organization address"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
@@ -381,6 +388,7 @@ const handleRegister = async (e: React.FormEvent) => {
             <Phone className="absolute left-3 top-3 h-4 w-4 text-green-500" />
             <Input
               type="tel"
+              autoComplete="off"
               placeholder="Enter phone number"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -395,6 +403,7 @@ const handleRegister = async (e: React.FormEvent) => {
           <Label>Description</Label>
           <Input
             type="text"
+            autoComplete="off"
             placeholder="Short description of your organization"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -410,6 +419,7 @@ const handleRegister = async (e: React.FormEvent) => {
             <Mail className="absolute left-3 top-3 h-4 w-4 text-green-500" />
             <Input
               type="email"
+              autoComplete="off"
               placeholder="Enter organization email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -426,6 +436,7 @@ const handleRegister = async (e: React.FormEvent) => {
             <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-green-500" />
             <Input
               type="password"
+              autoComplete="off"
               placeholder="Create a password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -442,6 +453,7 @@ const handleRegister = async (e: React.FormEvent) => {
             <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-green-500" />
             <Input
               type="password"
+              autoComplete="off"
               placeholder="Confirm your password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}

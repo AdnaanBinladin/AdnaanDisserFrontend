@@ -18,10 +18,9 @@ import {
 
 /* ================= Sidebar ================= */
 const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/ngo/dashboard" },
-  { icon: Bell, label: "Notifications", href: "/ngo/dashboard/notifications" },
-  { icon: User, label: "Profile", href: "/ngo/dashboard/profile" },
-  { icon: ShieldCheck, label: "Security", href: "/ngo/dashboard/security/change-password" },
+  { icon: LayoutDashboard, label: "Dashboard", href: "/donor/dashboard" },
+  { icon: Bell, label: "Notifications", href: "/donor/dashboard/notifications", badge: 3 },
+  { icon: User, label: "Profile", href: "/donor/dashboard/profile" },
 ];
 
 export default function VerifyOTPPage() {
@@ -193,7 +192,11 @@ const res = await fetch(
                 >
                   <item.icon className="w-5 h-5" />
                   {item.label}
-
+                  {item.badge && (
+                    <span className="ml-auto bg-destructive text-xs px-2 rounded-full text-white">
+                      {item.badge}
+                    </span>
+                  )}
                 </a>
               </li>
             ))}

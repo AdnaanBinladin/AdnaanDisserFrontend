@@ -233,7 +233,7 @@ export default function DonorProfilePage() {
           <a className="flex gap-3 p-3 rounded-xl hover:bg-muted" href="/donor/dashboard">
             <LayoutDashboard /> Dashboard
           </a>
-          <a className="flex gap-3 p-3 rounded-xl hover:bg-muted" href="/donor/dashboard/notifications">
+          <a className="flex gap-3 p-3 rounded-xl hover:bg-muted" href="/dashboard/notifications">
             <Bell /> Notifications
           </a>
           <a className="flex gap-3 p-3 rounded-xl bg-primary text-white">
