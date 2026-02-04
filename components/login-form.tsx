@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import accountCreatedAnimation from "@/public/animations/Account_Created.json";
-import { Mail, Lock, User, Apple, Carrot, Leaf, Phone, LockKeyhole } from "lucide-react";
+import { Mail, Lock, User, Apple, Carrot, Leaf, Phone, LockKeyhole, Clock, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { registerUser, loginUser } from "@/lib/auth";
 import Lottie from "lottie-react";
@@ -26,79 +27,86 @@ export function LoginForm() {
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [showPendingDialog, setShowPendingDialog] = useState(false);
+  const [showNgoPendingDialog, setShowNgoPendingDialog] = useState(false);
 
 
 
-// ✅ LOGIN HANDLER (FIXED & ROLE-SAFE)
-const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault()
-  setIsLoading(true)
-  setError("")
+  // ✅ LOGIN HANDLER (FIXED & ROLE-SAFE)
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
 
-  try {
-    const response = await loginUser({ email, password })
+    try {
+      const response = await loginUser({ email, password })
 
-    console.log("🔹 Login response:", response)
+      console.log("🔹 Login response:", response)
 
-    if (response.error) {
-      setError(response.error)
-      return
+      if (response.error) {
+        // Check if error is about pending account
+        if (response.error.toLowerCase().includes("pending") || response.status === 403) {
+          setShowPendingDialog(true);
+          return;
+        }
+        setError(response.error)
+        return
+      }
+
+      if (!response.donor?.id || !response.donor?.role) {
+        setError("Invalid login response from server.")
+        return
+      }
+
+      // 🔥 CLEAR EVERYTHING FIRST (VERY IMPORTANT)
+      localStorage.clear()
+
+      // ✅ SINGLE SOURCE OF TRUTH
+      localStorage.setItem("token", response.token)
+      localStorage.setItem("userId", response.donor.id)
+      localStorage.setItem("role", response.donor.role)
+
+      // ✅ OPTIONAL (role-based convenience keys)
+      if (response.donor.role === "donor") {
+        localStorage.setItem("donorId", response.donor.id)
+        router.push("/donor/dashboard")
+      }
+
+      if (response.donor.role === "ngo") {
+        localStorage.setItem("ngoId", response.donor.id)
+        router.push("/ngo/dashboard")
+      }
+
+      if (response.donor.role === "admin") {
+        router.push("/admin/dashboard")
+      }
+
+    } catch (err) {
+      console.error("⚠️ Login failed:", err)
+      setError("Something went wrong while logging in.")
+    } finally {
+      setIsLoading(false)
     }
-
-    if (!response.donor?.id || !response.donor?.role) {
-      setError("Invalid login response from server.")
-      return
-    }
-
-    // 🔥 CLEAR EVERYTHING FIRST (VERY IMPORTANT)
-    localStorage.clear()
-
-    // ✅ SINGLE SOURCE OF TRUTH
-    localStorage.setItem("token", response.token)
-    localStorage.setItem("userId", response.donor.id)
-    localStorage.setItem("role", response.donor.role)
-
-    // ✅ OPTIONAL (role-based convenience keys)
-    if (response.donor.role === "donor") {
-      localStorage.setItem("donorId", response.donor.id)
-      router.push("/donor/dashboard")
-    }
-
-    if (response.donor.role === "ngo") {
-      localStorage.setItem("ngoId", response.donor.id)
-      router.push("/ngo/dashboard")
-    }
-
-    if (response.donor.role === "admin") {
-      router.push("/admin/dashboard")
-    }
-
-  } catch (err) {
-    console.error("⚠️ Login failed:", err)
-    setError("Something went wrong while logging in.")
-  } finally {
-    setIsLoading(false)
-  }
-}
-
-
-
-// ✅ REGISTER HANDLER (Donor + NGO)
-const handleRegister = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError("");
-
-  if (password !== confirmPassword) {
-    setError("Passwords do not match. Please retype your password.");
-    return;
   }
 
-  setIsLoading(true);
-  try {
-    // 🧠 Build the request payload dynamically
-    const payload =
-      role === "ngo"
-        ? {
+
+
+  // ✅ REGISTER HANDLER (Donor + NGO)
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match. Please retype your password.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // 🧠 Build the request payload dynamically
+      const payload =
+        role === "ngo"
+          ? {
             full_name: name,
             email,
             phone,
@@ -107,7 +115,7 @@ const handleRegister = async (e: React.FormEvent) => {
             address,
             description,
           }
-        : {
+          : {
             full_name: name,
             email,
             phone,
@@ -115,42 +123,48 @@ const handleRegister = async (e: React.FormEvent) => {
             role, // donor only needs these
           };
 
-    console.log("📦 Registration payload:", payload); // debug check
+      console.log("📦 Registration payload:", payload); // debug check
 
-    const response = await registerUser(payload);
+      const response = await registerUser(payload);
 
-    if (response.error) {
-      setError(response.error);
-    } else {
-      // ✅ show success animation
-      setShowSuccessAnimation(true);
-    
-      // ⏱️ let animation play, then reload
-      setTimeout(() => {
-        window.location.reload();
-      }, 3200);
+      if (response.error) {
+        setError(response.error);
+      } else {
+        // Show success animation first
+        setShowSuccessAnimation(true);
+
+        // After animation, show pending dialog for NGO or reload for donor
+        setTimeout(() => {
+          setShowSuccessAnimation(false);
+          if (response.status === "pending") {
+            setShowNgoPendingDialog(true);
+          }
+          else {
+            window.location.reload();
+          }
+        }, 3200);
+      }
+
+    } catch (err) {
+      console.error("⚠️ Registration error:", err);
+      setError("Something went wrong during registration.");
+    } finally {
+      setIsLoading(false);
     }
-    
-  } catch (err) {
-    console.error("⚠️ Registration error:", err);
-    setError("Something went wrong during registration.");
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   return (
     <div className="relative overflow-hidden">
       {showSuccessAnimation && (
-  <div className="fixed inset-0 z-[200] flex items-center justify-center bg-white">
-    <div className="w-[320px]">
-      <Lottie
-        animationData={accountCreatedAnimation}
-        loop={false}
-      />
-    </div>
-  </div>
-)}
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-white">
+          <div className="w-[320px]">
+            <Lottie
+              animationData={accountCreatedAnimation}
+              loop={false}
+            />
+          </div>
+        </div>
+      )}
 
       {/* 🍏 Background decorations */}
       <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-red-50 to-green-50 opacity-60" />
@@ -241,245 +255,321 @@ const handleRegister = async (e: React.FormEvent) => {
               </form>
             </TabsContent>
 
-<TabsContent value="register">
-  <form onSubmit={handleRegister} className="space-y-4">
-    {/* Role Selection */}
-    <div className="space-y-2">
-      <Label>Role</Label>
-      <Select onValueChange={setRole} value={role} required>
-        <SelectTrigger className="border-2 border-green-200 focus:border-green-500">
-          <SelectValue placeholder="Select your role" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="donor">Donor</SelectItem>
-          <SelectItem value="ngo">NGO</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
+            <TabsContent value="register">
+              <form onSubmit={handleRegister} className="space-y-4">
+                {/* Role Selection */}
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Select onValueChange={setRole} value={role} required>
+                    <SelectTrigger className="border-2 border-green-200 focus:border-green-500">
+                      <SelectValue placeholder="Select your role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="donor">Donor</SelectItem>
+                      <SelectItem value="ngo">NGO</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-    {/* Donor Registration Fields */}
-    {role === "donor" && (
-      <>
-        {/* Full Name */}
-        <div className="space-y-2">
-          <Label>Full Name</Label>
-          <div className="relative">
-            <User className="absolute left-3 top-3 h-4 w-4 text-green-500" />
-            <Input
-              type="text"
-              autoComplete="off"
-              placeholder="Enter your full name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="pl-10 border-2 border-green-200 focus:border-green-500"
-              required
-            />
-          </div>
-        </div>
+                {/* Donor Registration Fields */}
+                {role === "donor" && (
+                  <>
+                    {/* Full Name */}
+                    <div className="space-y-2">
+                      <Label>Full Name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-green-500" />
+                        <Input
+                          type="text"
+                          autoComplete="off"
+                          placeholder="Enter your full name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className="pl-10 border-2 border-green-200 focus:border-green-500"
+                          required
+                        />
+                      </div>
+                    </div>
 
-        {/* Phone */}
-        <div className="space-y-2">
-          <Label>Phone Number</Label>
-          <div className="relative">
-            <Phone className="absolute left-3 top-3 h-4 w-4 text-green-500" />
-            <Input
-              type="tel"
-              autoComplete="off"
-              placeholder="Enter your phone number"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="pl-10 border-2 border-green-200 focus:border-green-500"
-              required
-            />
-          </div>
-        </div>
+                    {/* Phone */}
+                    <div className="space-y-2">
+                      <Label>Phone Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-3 h-4 w-4 text-green-500" />
+                        <Input
+                          type="tel"
+                          autoComplete="off"
+                          placeholder="Enter your phone number"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="pl-10 border-2 border-green-200 focus:border-green-500"
+                          required
+                        />
+                      </div>
+                    </div>
 
-        {/* Email */}
-        <div className="space-y-2">
-          <Label>Email</Label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-3 h-4 w-4 text-green-500" />
-            <Input
-              type="email"
-              autoComplete="off"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="pl-10 border-2 border-green-200 focus:border-green-500"
-              required
-            />
-          </div>
-        </div>
+                    {/* Email */}
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-green-500" />
+                        <Input
+                          type="email"
+                          autoComplete="off"
+                          placeholder="Enter your email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="pl-10 border-2 border-green-200 focus:border-green-500"
+                          required
+                        />
+                      </div>
+                    </div>
 
-        {/* Password */}
-        <div className="space-y-2">
-          <Label>Password</Label>
-          <div className="relative">
-            <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-green-500" />
-            <Input
-              type="password"
-              autoComplete="off"
-              placeholder="Create a password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="pl-10 border-2 border-green-200 focus:border-green-500"
-              required
-            />
-          </div>
-        </div>
+                    {/* Password */}
+                    <div className="space-y-2">
+                      <Label>Password</Label>
+                      <div className="relative">
+                        <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-green-500" />
+                        <Input
+                          type="password"
+                          autoComplete="off"
+                          placeholder="Create a password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="pl-10 border-2 border-green-200 focus:border-green-500"
+                          required
+                        />
+                      </div>
+                    </div>
 
-        {/* Confirm Password */}
-        <div className="space-y-2">
-          <Label>Confirm Password</Label>
-          <div className="relative">
-            <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-green-500" />
-            <Input
-              type="password"
-              autoComplete="off"
-              placeholder="Confirm your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="pl-10 border-2 border-green-200 focus:border-green-500"
-              required
-            />
-          </div>
-        </div>
-      </>
-    )}
+                    {/* Confirm Password */}
+                    <div className="space-y-2">
+                      <Label>Confirm Password</Label>
+                      <div className="relative">
+                        <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-green-500" />
+                        <Input
+                          type="password"
+                          autoComplete="off"
+                          placeholder="Confirm your password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="pl-10 border-2 border-green-200 focus:border-green-500"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
-    {/* NGO Registration Fields */}
-    {role === "ngo" && (
-      <>
-        {/* Organization Name */}
-        <div className="space-y-2">
-          <Label>Organization Name</Label>
-          <div className="relative">
-            <User className="absolute left-3 top-3 h-4 w-4 text-green-500" />
-            <Input
-              type="text"
-              autoComplete="off"
-              placeholder="Enter organization name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="pl-10 border-2 border-green-200 focus:border-green-500"
-              required
-            />
-          </div>
-        </div>
+                {/* NGO Registration Fields */}
+                {role === "ngo" && (
+                  <>
+                    {/* Organization Name */}
+                    <div className="space-y-2">
+                      <Label>Organization Name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-green-500" />
+                        <Input
+                          type="text"
+                          autoComplete="off"
+                          placeholder="Enter organization name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className="pl-10 border-2 border-green-200 focus:border-green-500"
+                          required
+                        />
+                      </div>
+                    </div>
 
-        {/* Address */}
-        <div className="space-y-2">
-          <Label>Address</Label>
-          <Input
-            type="text"
-            autoComplete="off"
-            placeholder="Enter organization address"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            className="border-2 border-green-200 focus:border-green-500"
-            required
-          />
-        </div>
+                    {/* Address */}
+                    <div className="space-y-2">
+                      <Label>Address</Label>
+                      <Input
+                        type="text"
+                        autoComplete="off"
+                        placeholder="Enter organization address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        className="border-2 border-green-200 focus:border-green-500"
+                        required
+                      />
+                    </div>
 
-        {/* Phone */}
-        <div className="space-y-2">
-          <Label>Phone Number</Label>
-          <div className="relative">
-            <Phone className="absolute left-3 top-3 h-4 w-4 text-green-500" />
-            <Input
-              type="tel"
-              autoComplete="off"
-              placeholder="Enter phone number"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="pl-10 border-2 border-green-200 focus:border-green-500"
-              required
-            />
-          </div>
-        </div>
+                    {/* Phone */}
+                    <div className="space-y-2">
+                      <Label>Phone Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-3 h-4 w-4 text-green-500" />
+                        <Input
+                          type="tel"
+                          autoComplete="off"
+                          placeholder="Enter phone number"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="pl-10 border-2 border-green-200 focus:border-green-500"
+                          required
+                        />
+                      </div>
+                    </div>
 
-        {/* Description */}
-        <div className="space-y-2">
-          <Label>Description</Label>
-          <Input
-            type="text"
-            autoComplete="off"
-            placeholder="Short description of your organization"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="border-2 border-green-200 focus:border-green-500"
-            required
-          />
-        </div>
+                    {/* Description */}
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Input
+                        type="text"
+                        autoComplete="off"
+                        placeholder="Short description of your organization"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="border-2 border-green-200 focus:border-green-500"
+                        required
+                      />
+                    </div>
 
-        {/* Email */}
-        <div className="space-y-2">
-          <Label>Email</Label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-3 h-4 w-4 text-green-500" />
-            <Input
-              type="email"
-              autoComplete="off"
-              placeholder="Enter organization email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="pl-10 border-2 border-green-200 focus:border-green-500"
-              required
-            />
-          </div>
-        </div>
+                    {/* Email */}
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-green-500" />
+                        <Input
+                          type="email"
+                          autoComplete="off"
+                          placeholder="Enter organization email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="pl-10 border-2 border-green-200 focus:border-green-500"
+                          required
+                        />
+                      </div>
+                    </div>
 
-        {/* Password */}
-        <div className="space-y-2">
-          <Label>Password</Label>
-          <div className="relative">
-            <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-green-500" />
-            <Input
-              type="password"
-              autoComplete="off"
-              placeholder="Create a password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="pl-10 border-2 border-green-200 focus:border-green-500"
-              required
-            />
-          </div>
-        </div>
+                    {/* Password */}
+                    <div className="space-y-2">
+                      <Label>Password</Label>
+                      <div className="relative">
+                        <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-green-500" />
+                        <Input
+                          type="password"
+                          autoComplete="off"
+                          placeholder="Create a password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="pl-10 border-2 border-green-200 focus:border-green-500"
+                          required
+                        />
+                      </div>
+                    </div>
 
-        {/* Confirm Password */}
-        <div className="space-y-2">
-          <Label>Confirm Password</Label>
-          <div className="relative">
-            <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-green-500" />
-            <Input
-              type="password"
-              autoComplete="off"
-              placeholder="Confirm your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="pl-10 border-2 border-green-200 focus:border-green-500"
-              required
-            />
-          </div>
-        </div>
-      </>
-    )}
+                    {/* Confirm Password */}
+                    <div className="space-y-2">
+                      <Label>Confirm Password</Label>
+                      <div className="relative">
+                        <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-green-500" />
+                        <Input
+                          type="password"
+                          autoComplete="off"
+                          placeholder="Confirm your password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="pl-10 border-2 border-green-200 focus:border-green-500"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
-    {error && <p className="text-sm text-red-500">{error}</p>}
+                {error && <p className="text-sm text-red-500">{error}</p>}
 
-    <Button
-      type="submit"
-      className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold py-3"
-      disabled={isLoading}
-    >
-      {isLoading ? "Registering..." : "🌱 Create Account"}
-    </Button>
-  </form>
-</TabsContent>
+                <Button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold py-3"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Registering..." : "🌱 Create Account"}
+                </Button>
+              </form>
+            </TabsContent>
 
           </Tabs>
         </div>
       </Card>
+
+      {/* Pending Account Dialog - For Login Attempts */}
+      <Dialog open={showPendingDialog} onOpenChange={setShowPendingDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
+              <Clock className="h-8 w-8 text-amber-600" />
+            </div>
+            <DialogTitle className="text-center text-xl">Account Pending Approval</DialogTitle>
+            <DialogDescription className="text-center">
+              Your NGO account is currently under review by our admin team. You will receive an email notification once your account has been approved.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="rounded-lg bg-amber-50 p-4 border border-amber-200">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium">What happens next?</p>
+                  <ul className="mt-2 list-disc list-inside space-y-1">
+                    <li>Our admin team will review your application</li>
+                    <li>This typically takes 1-2 business days</li>
+                    <li>You will receive an email once approved</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <Button
+              onClick={() => setShowPendingDialog(false)}
+              className="w-full bg-gradient-to-r from-amber-500 to-orange-500"
+            >
+              I Understand
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* NGO Registration Success - Pending Dialog */}
+      <Dialog open={showNgoPendingDialog} onOpenChange={setShowNgoPendingDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+              <Clock className="h-8 w-8 text-green-600" />
+            </div>
+            <DialogTitle className="text-center text-xl">Registration Submitted!</DialogTitle>
+            <DialogDescription className="text-center">
+              Thank you for registering your NGO with FoodShare. Your application has been submitted and is pending admin approval.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="rounded-lg bg-green-50 p-4 border border-green-200">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                <div className="text-sm text-green-800">
+                  <p className="font-medium">Next Steps:</p>
+                  <ul className="mt-2 list-disc list-inside space-y-1">
+                    <li>Your application will be reviewed by our team</li>
+                    <li>Review process takes 1-2 business days</li>
+                    <li>You will receive an approval email at <strong>{email}</strong></li>
+                    <li>After approval, you can login and start claiming food donations</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <Button
+              onClick={() => {
+                setShowNgoPendingDialog(false);
+                window.location.reload();
+              }}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-500"
+            >
+              Got It!
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

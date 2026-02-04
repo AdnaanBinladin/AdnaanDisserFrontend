@@ -73,3 +73,116 @@ export async function getDonorProfile(donorId: string) {
   }
 }
 
+// ========================================
+// ADMIN API FUNCTIONS
+// ========================================
+
+export interface PendingNGO {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  address: string;
+  description: string;
+  status: string;
+  created_at: string;
+}
+
+// Get all pending NGO registrations
+export async function getPendingNGOs(): Promise<PendingNGO[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/admin/ngos/pending`, {
+      method: "GET",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}`
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    const data = await res.json();
+    return data.ngos || [];
+  } catch (err) {
+    console.error("Error fetching pending NGOs:", err);
+    return [];
+  }
+}
+
+// Approve an NGO registration
+export async function approveNGO(ngoId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${BASE_URL}/admin/ngos/${ngoId}/approve`, {
+      method: "PUT",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}`
+      },
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.error || "Failed to approve NGO" };
+    }
+    return { success: true };
+  } catch (err) {
+    console.error("Error approving NGO:", err);
+    return { success: false, error: "Network error" };
+  }
+}
+
+// Reject an NGO registration
+export async function rejectNGO(ngoId: string, reason?: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${BASE_URL}/admin/ngos/${ngoId}/reject`, {
+      method: "PUT",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}`
+      },
+      body: JSON.stringify({ reason }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.error || "Failed to reject NGO" };
+    }
+    return { success: true };
+  } catch (err) {
+    console.error("Error rejecting NGO:", err);
+    return { success: false, error: "Network error" };
+  }
+}
+
+// Get all users (for admin dashboard)
+export async function getAllUsers() {
+  try {
+    const res = await fetch(`${BASE_URL}/admin/users`, {
+      method: "GET",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}`
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    return { users: [] };
+  }
+}
+
+// Get admin dashboard stats
+export async function getAdminStats() {
+  try {
+    const res = await fetch(`${BASE_URL}/admin/stats`, {
+      method: "GET",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}`
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.error("Error fetching admin stats:", err);
+    return null;
+  }
+}
+
