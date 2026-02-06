@@ -78,14 +78,15 @@ export async function getDonorProfile(donorId: string) {
 // ========================================
 
 export interface PendingNGO {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string;
-  address: string;
-  description: string;
-  status: string;
-  created_at: string;
+  org_id: string
+  user_id: string
+  full_name: string
+  email: string
+  phone?: string
+  address?: string
+  description?: string
+  status: string
+  created_at: string
 }
 
 // Get all pending NGO registrations

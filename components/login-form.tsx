@@ -130,19 +130,20 @@ export function LoginForm() {
       if (response.error) {
         setError(response.error);
       } else {
-        // Show success animation first
+        // ✅ NGO → NO animation, show pending dialog immediately
+        if (response.role === "ngo" && response.status === "pending") {
+          setShowNgoPendingDialog(true);
+          return;
+        }
+
+        // ✅ Donor → show success animation
         setShowSuccessAnimation(true);
 
-        // After animation, show pending dialog for NGO or reload for donor
         setTimeout(() => {
           setShowSuccessAnimation(false);
-          if (response.status === "pending") {
-            setShowNgoPendingDialog(true);
-          }
-          else {
-            window.location.reload();
-          }
+          window.location.reload();
         }, 3200);
+
       }
 
     } catch (err) {

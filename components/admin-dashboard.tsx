@@ -125,19 +125,19 @@ export function AdminDashboard() {
   }
 
   const handleApproveNGO = async (ngo: PendingNGO) => {
-    setIsApproving(ngo.id)
+    setIsApproving(ngo.user_id)
     try {
-      const result = await approveNGO(ngo.id)
+      const result = await approveNGO(ngo.user_id)
       if (result.success) {
         toast({
           title: "NGO Approved",
           description: `${ngo.full_name} has been approved. An email notification has been sent.`,
         })
         // Remove from pending list
-        setPendingNGOs(prev => prev.filter(n => n.id !== ngo.id))
+        setPendingNGOs(prev => prev.filter(n => n.user_id !== ngo.user_id))
         setStats(prev => ({
           ...prev,
-          pendingNGOs: prev.pendingNGOs - 1,
+          pendingNGOs: Math.max(prev.pendingNGOs - 1, 0),
           activeUsers: prev.activeUsers + 1,
           totalUsers: prev.totalUsers + 1,
         }))
@@ -169,16 +169,16 @@ export function AdminDashboard() {
   const handleRejectNGO = async () => {
     if (!rejectingNGO) return
     
-    setIsRejecting(rejectingNGO.id)
+    setIsRejecting(rejectingNGO.user_id)
     try {
-      const result = await rejectNGO(rejectingNGO.id, rejectionReason)
+      const result = await rejectNGO(rejectingNGO.user_id, rejectionReason)
       if (result.success) {
         toast({
           title: "NGO Rejected",
           description: `${rejectingNGO.full_name} has been rejected.`,
         })
         // Remove from pending list
-        setPendingNGOs(prev => prev.filter(n => n.id !== rejectingNGO.id))
+        setPendingNGOs(prev => prev.filter(n => n.user_id !== rejectingNGO.user_id))
         setStats(prev => ({
           ...prev,
           pendingNGOs: prev.pendingNGOs - 1,
@@ -367,7 +367,7 @@ export function AdminDashboard() {
                 ) : (
                   <div className="space-y-6">
                     {pendingNGOs.map((ngo) => (
-                      <Card key={ngo.id} className="border-l-4 border-l-amber-500">
+                      <Card key={ngo.user_id} className="border-l-4 border-l-amber-500">
                         <CardHeader>
                           <div className="flex items-start justify-between">
                             <div>
@@ -412,10 +412,10 @@ export function AdminDashboard() {
                           <div className="flex gap-3 pt-4 border-t">
                             <Button 
                               onClick={() => handleApproveNGO(ngo)} 
-                              disabled={isApproving === ngo.id}
+                              disabled={isApproving === ngo.user_id}
                               className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
                             >
-                              {isApproving === ngo.id ? (
+                              {isApproving === ngo.user_id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <CheckCircle className="h-4 w-4" />
@@ -425,10 +425,10 @@ export function AdminDashboard() {
                             <Button
                               variant="destructive"
                               onClick={() => openRejectDialog(ngo)}
-                              disabled={isRejecting === ngo.id}
+                              disabled={isRejecting === ngo.user_id}
                               className="flex items-center gap-2"
                             >
-                              {isRejecting === ngo.id ? (
+                              {isRejecting === ngo.user_id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <XCircle className="h-4 w-4" />
