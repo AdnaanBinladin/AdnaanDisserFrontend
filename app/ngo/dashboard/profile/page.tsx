@@ -28,6 +28,7 @@ import {
   Trash2,
   CheckCircle2,
   Building2,
+  Leaf,
   MapPin,
   ShieldCheck,
 } from "lucide-react";
@@ -290,437 +291,507 @@ export default function NGOProfilePage() {
         return pathname.startsWith(href);
       };
       
-  return (
-    <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-card border-r border-border flex flex-col fixed h-full">
-        {/* Logo */}
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">F</span>
+      return (
+        <div className="min-h-screen bg-background flex">
+          {/* Sidebar */}
+          <aside className="w-64 bg-card border-r border-border flex flex-col fixed h-full">
+            {/* Logo */}
+            <div className="p-6 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FF6B35]">
+                  <Leaf className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-xl font-bold text-[#FF6B35]">FoodShare</span>
+              </div>
             </div>
-            <span className="text-xl font-bold text-foreground">FoodShare</span>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 p-4">
-          <ul className="space-y-2">
-          {sidebarItems.map((item) => (
-      <li key={item.label}>
-        <Link
-  href={item.href}
-  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-    isRouteActive(item.href)
-      ? "bg-primary text-primary-foreground shadow-md"
-      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-  }`}
->
-
-          <item.icon className="w-5 h-5" />
-          <span className="font-medium">{item.label}</span>
-
-          
-        </Link>
-      </li>
-    ))}
-          </ul>
-        </nav>
-
-        {/* Sign Out */}
-        <div className="p-4 border-t border-border">
-  <button
-    type="button"
-    onClick={() => {
-      localStorage.clear();
-      router.replace("/");
-    }}
-    className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all w-full"
-  >
-    <LogOut className="w-5 h-5" />
-    <span className="font-medium">Sign Out</span>
-  </button>
-</div>
-
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 ml-64">
-        {/* Header Banner */}
-        <div className="relative h-40 bg-gradient-to-r from-primary via-primary/90 to-amber-500 overflow-hidden">
-          <div className="absolute inset-0 opacity-20">
-            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <defs>
-                <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-                  <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.5" />
-                </pattern>
-              </defs>
-              <rect width="100" height="100" fill="url(#grid)" />
-            </svg>
-          </div>
-          <div className="absolute bottom-6 left-8 flex items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-primary-foreground flex items-center gap-3">
-                {organization.name}
-                <Badge
-  className={
-    verificationStatus === "approved"
-      ? "bg-white/20 text-white border-white/30"
-      : verificationStatus === "rejected"
-      ? "bg-destructive/80 text-white border-destructive"
-      : "bg-amber-400/80 text-black border-amber-500"
-  }
->
-  <ShieldCheck className="w-3 h-3 mr-1" />
-  {verificationLabel}
-</Badge>
-
-              </h1>
-              <p className="text-primary-foreground/80">Manage your organization details and verification status</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-4xl mx-auto px-8 -mt-12 pb-12">
-          {/* NGO Profile Card */}
-          <Card className="relative mb-8 overflow-visible shadow-xl">
-            <CardContent className="pt-0">
-              <div className="flex flex-col md:flex-row gap-6 items-start">
-                {/* Logo / Avatar */}
-                <div className="relative -mt-12">
-                  <div className="w-28 h-28 rounded-2xl bg-gradient-to-br from-primary to-amber-500 p-1 shadow-lg">
-                    <div className="w-full h-full rounded-xl bg-card flex items-center justify-center">
-                      <Building2 className="w-14 h-14 text-primary" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Organization Info / Edit Form */}
-                <div className="flex-1 py-6">
-                  {isEditing ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold text-foreground">Edit Organization</h2>
-                        <Badge
-  className={
-    verificationStatus === "approved"
-      ? "bg-secondary text-secondary-foreground"
-      : verificationStatus === "rejected"
-      ? "bg-destructive text-destructive-foreground"
-      : "bg-amber-400 text-amber-900"
-  }
->
-  {verificationLabel}
-</Badge>
-
-                      </div>
-
-                      <div className="grid gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="org_name" className="text-sm font-medium text-foreground">
-                            Organization Name
-                          </Label>
-                          <div className="relative">
-                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                              id="org_name"
-                              value={editForm.name}
-                              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                              className="pl-10"
-                              placeholder="Enter organization name"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="address" className="text-sm font-medium text-foreground">
-                            Address
-                          </Label>
-                          <div className="relative">
-                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                              id="address"
-                              value={editForm.address}
-                              onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                              className="pl-10"
-                              placeholder="Enter address"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="org_phone" className="text-sm font-medium text-foreground">
-                            Organization Phone
-                          </Label>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                              id="org_phone"
-                              value={editForm.phone}
-                              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                              className="pl-10"
-                              placeholder="Enter phone number"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="description" className="text-sm font-medium text-foreground">
-                            Description
-                          </Label>
-                          <Textarea
-                            id="description"
-                            value={editForm.description}
-                            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                            placeholder="Describe your organization's mission..."
-                            rows={3}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex gap-3 pt-4">
-                        <Button onClick={handleSave} className="bg-primary hover:bg-primary/90">
-                          <Save className="w-4 h-4 mr-2" />
-                          Save Changes
-                        </Button>
-                        <Button variant="outline" onClick={handleCancel}>
-                          <X className="w-4 h-4 mr-2" />
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <h2 className="text-2xl font-bold text-foreground">{organization.name}</h2>
-                          <Badge
-  className={
-    verificationStatus === "approved"
-      ? "bg-secondary text-secondary-foreground"
-      : verificationStatus === "rejected"
-      ? "bg-destructive text-destructive-foreground"
-      : "bg-amber-400 text-amber-900"
-  }
->
-  {verificationLabel}
-</Badge>
-
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsEditing(true)}
-                          className="text-primary border-primary hover:bg-primary hover:text-primary-foreground"
-                        >
-                          <Edit3 className="w-4 h-4 mr-2" />
-                          Edit Profile
-                        </Button>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3 text-muted-foreground">
-                          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                            <MapPin className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Address</p>
-                            <p className="text-foreground font-medium">{organization.address || "Address not provided"}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 text-muted-foreground">
-                          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                            <Phone className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Phone</p>
-                            <p className="text-foreground font-medium">{organization.phone || "Phone not provided"}</p>
-                          </div>
-                        </div>
-
-                        {organization.description && (
-                          <p className="text-sm text-muted-foreground mt-4 p-4 rounded-xl bg-muted/50">
-                            {organization.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Account Details */}
-          <Card className="shadow-lg mb-8">
-            <CardContent className="pt-6">
-              <h2 className="text-xl font-bold text-foreground flex items-center gap-2 mb-6">
-                <Shield className="w-5 h-5 text-primary" />
-                Account Details
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="flex items-center gap-4 p-4 rounded-xl bg-secondary/10 border border-secondary/20">
-                  <div className="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center">
-                    <ShieldCheck className="w-6 h-6 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Status</p>
-                    <p
-  className={`text-lg font-semibold ${
-    verificationStatus === "approved"
-      ? "text-secondary"
-      : verificationStatus === "rejected"
-      ? "text-destructive"
-      : "text-amber-600"
-  }`}
->
-  {verificationLabel}
-</p>
-
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/50 border border-border">
-                  <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
-                    <Calendar className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Member Since</p>
-                    <p className="text-lg font-semibold text-foreground">{formatMemberSince(organization.created_at)}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 p-4 rounded-xl bg-primary/10 border border-primary/20">
-                  <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                    <Building2 className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Role</p>
-                    <p className="text-lg font-semibold text-primary">NGO</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* NGO Administrator */}
-          <Card className="shadow-lg mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <User className="w-5 h-5 text-primary" />
-                NGO Administrator
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                  <Mail className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Email</p>
-                  <p className="text-foreground font-medium">{user.email}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                  <Phone className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Phone</p>
-                  <p className="text-foreground font-medium">{user.phone || "—"}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                  <CheckCircle2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Role</p>
-                  <p className="text-foreground font-medium">NGO</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Danger Zone - Delete Account */}
-          <Card className="shadow-lg border-destructive/30">
-            <CardContent className="pt-6">
-              <h2 className="text-xl font-bold text-destructive flex items-center gap-2 mb-4">
-                <AlertTriangle className="w-5 h-5" />
-                Danger Zone
-              </h2>
-              <p className="text-muted-foreground mb-4">
-                Deleting this NGO account is permanent. All claims, donation history, and organization data will be removed.
-              </p>
-              <Button
-                variant="outline"
-                className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground bg-transparent"
-                onClick={() => setShowDeleteModal(true)}
+    
+            {/* Navigation */}
+            <nav className="flex-1 p-4">
+              <ul className="space-y-1">
+                {sidebarItems.map((item) => (
+                  <li key={item.label}>
+                    <Link
+                      href={item.href}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                        isRouteActive(item.href)
+                          ? "bg-[#FF6B35] text-white shadow-md"
+                          : "text-muted-foreground hover:bg-[#FF6B35]/10 hover:text-[#FF6B35]"
+                      }`}
+                    >
+                      <item.icon className="w-5 h-5" />
+                      <span>{item.label}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+    
+            {/* Sign Out */}
+            <div className="p-4 border-t border-border">
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.clear();
+                  router.replace("/");
+                }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-all w-full"
               >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete NGO Account
-              </Button>
-            </CardContent>
-          </Card>
+                <LogOut className="w-5 h-5" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </aside>
+    
+          {/* Main Content */}
+          <main className="flex-1 ml-64">
+            {/* Header Banner */}
+            <div className="relative h-40 bg-gradient-to-r from-[#FF6B35] via-[#F7C948] to-[#4CAF50] overflow-hidden">
+              <div className="absolute inset-0 opacity-10">
+                <svg
+                  className="w-full h-full"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                >
+                  <defs>
+                    <pattern
+                      id="grid"
+                      width="10"
+                      height="10"
+                      patternUnits="userSpaceOnUse"
+                    >
+                      <path
+                        d="M 10 0 L 0 0 0 10"
+                        fill="none"
+                        stroke="white"
+                        strokeWidth="0.5"
+                      />
+                    </pattern>
+                  </defs>
+                  <rect width="100" height="100" fill="url(#grid)" />
+                </svg>
+              </div>
+              <div className="absolute bottom-6 left-8 flex items-center gap-4">
+                <div>
+                  <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    {organization.name}
+                    <Badge
+                      className={
+                        verificationStatus === "approved"
+                          ? "bg-white/20 text-white border-white/30"
+                          : verificationStatus === "rejected"
+                            ? "bg-destructive/80 text-white border-destructive"
+                            : "bg-[#F7C948]/80 text-[#3D2E00] border-[#F7C948]"
+                      }
+                    >
+                      <ShieldCheck className="w-3 h-3 mr-1" />
+                      {verificationLabel}
+                    </Badge>
+                  </h1>
+                  <p className="text-white/80">
+                    Manage your organization details and verification status
+                  </p>
+                </div>
+              </div>
+            </div>
+    
+            <div className="max-w-4xl mx-auto px-8 -mt-12 pb-12">
+              {/* NGO Profile Card */}
+              <Card className="relative mb-8 overflow-visible shadow-xl border-[#FF6B35]/15">
+                <CardContent className="pt-0">
+                  <div className="flex flex-col md:flex-row gap-6 items-start">
+                    {/* Logo / Avatar */}
+                    <div className="relative -mt-12">
+                      <div className="w-28 h-28 rounded-2xl bg-gradient-to-br from-[#FF6B35] to-[#F7C948] p-1 shadow-lg">
+                        <div className="w-full h-full rounded-xl bg-card flex items-center justify-center">
+                          <Building2 className="w-14 h-14 text-[#FF6B35]" />
+                        </div>
+                      </div>
+                    </div>
+    
+                    {/* Organization Info / Edit Form */}
+                    <div className="flex-1 py-6">
+                      {isEditing ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-foreground">
+                              Edit Organization
+                            </h2>
+                            <Badge
+                              className={
+                                verificationStatus === "approved"
+                                  ? "bg-[#4CAF50] text-white"
+                                  : verificationStatus === "rejected"
+                                    ? "bg-destructive text-destructive-foreground"
+                                    : "bg-[#F7C948] text-[#3D2E00]"
+                              }
+                            >
+                              {verificationLabel}
+                            </Badge>
+                          </div>
+    
+                          <div className="grid gap-4">
+                            <div className="space-y-2">
+                              <Label
+                                htmlFor="org_name"
+                                className="text-sm font-medium text-foreground"
+                              >
+                                Organization Name
+                              </Label>
+                              <div className="relative">
+                                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                  id="org_name"
+                                  value={editForm.name}
+                                  onChange={(e) =>
+                                    setEditForm({
+                                      ...editForm,
+                                      name: e.target.value,
+                                    })
+                                  }
+                                  className="pl-10 border-[#FF6B35]/30 focus:border-[#FF6B35] focus:ring-[#FF6B35]/20"
+                                  placeholder="Enter organization name"
+                                />
+                              </div>
+                            </div>
+    
+                            <div className="space-y-2">
+                              <Label
+                                htmlFor="address"
+                                className="text-sm font-medium text-foreground"
+                              >
+                                Address
+                              </Label>
+                              <div className="relative">
+                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                  id="address"
+                                  value={editForm.address}
+                                  onChange={(e) =>
+                                    setEditForm({
+                                      ...editForm,
+                                      address: e.target.value,
+                                    })
+                                  }
+                                  className="pl-10 border-[#FF6B35]/30 focus:border-[#FF6B35] focus:ring-[#FF6B35]/20"
+                                  placeholder="Enter address"
+                                />
+                              </div>
+                            </div>
+    
+                            <div className="space-y-2">
+                              <Label
+                                htmlFor="org_phone"
+                                className="text-sm font-medium text-foreground"
+                              >
+                                Organization Phone
+                              </Label>
+                              <div className="relative">
+                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                  id="org_phone"
+                                  value={editForm.phone}
+                                  onChange={(e) =>
+                                    setEditForm({
+                                      ...editForm,
+                                      phone: e.target.value,
+                                    })
+                                  }
+                                  className="pl-10 border-[#FF6B35]/30 focus:border-[#FF6B35] focus:ring-[#FF6B35]/20"
+                                  placeholder="Enter phone number"
+                                />
+                              </div>
+                            </div>
+    
+                            <div className="space-y-2">
+                              <Label
+                                htmlFor="description"
+                                className="text-sm font-medium text-foreground"
+                              >
+                                Description
+                              </Label>
+                              <Textarea
+                                id="description"
+                                value={editForm.description}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    description: e.target.value,
+                                  })
+                                }
+                                placeholder="Describe your organization's mission..."
+                                rows={3}
+                                className="border-[#FF6B35]/30 focus:border-[#FF6B35] focus:ring-[#FF6B35]/20"
+                              />
+                            </div>
+                          </div>
+    
+                          <div className="flex gap-3 pt-4">
+                            <Button
+                              onClick={handleSave}
+                              className="bg-[#FF6B35] hover:bg-[#E55A2B] text-white"
+                            >
+                              <Save className="w-4 h-4 mr-2" />
+                              Save Changes
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={handleCancel}
+                              className="border-[#FF6B35]/30 text-[#FF6B35] hover:bg-[#FF6B35]/10 bg-transparent"
+                            >
+                              <X className="w-4 h-4 mr-2" />
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <h2 className="text-2xl font-bold text-foreground">
+                                {organization.name}
+                              </h2>
+                              <Badge
+                                className={
+                                  verificationStatus === "approved"
+                                    ? "bg-[#4CAF50] text-white"
+                                    : verificationStatus === "rejected"
+                                      ? "bg-destructive text-destructive-foreground"
+                                      : "bg-[#F7C948] text-[#3D2E00]"
+                                }
+                              >
+                                {verificationLabel}
+                              </Badge>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsEditing(true)}
+                              className="border-[#FF6B35] text-[#FF6B35] hover:bg-[#FF6B35] hover:text-white bg-transparent"
+                            >
+                              <Edit3 className="w-4 h-4 mr-2" />
+                              Edit Profile
+                            </Button>
+                          </div>
+    
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3 text-muted-foreground">
+                              <div className="w-8 h-8 rounded-lg bg-[#FF6B35]/10 flex items-center justify-center">
+                                <MapPin className="w-4 h-4 text-[#FF6B35]" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">
+                                  Address
+                                </p>
+                                <p className="text-foreground font-medium">
+                                  {organization.address || "Address not provided"}
+                                </p>
+                              </div>
+                            </div>
+    
+                            <div className="flex items-center gap-3 text-muted-foreground">
+                              <div className="w-8 h-8 rounded-lg bg-[#4CAF50]/10 flex items-center justify-center">
+                                <Phone className="w-4 h-4 text-[#4CAF50]" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">
+                                  Phone
+                                </p>
+                                <p className="text-foreground font-medium">
+                                  {organization.phone || "Phone not provided"}
+                                </p>
+                              </div>
+                            </div>
+    
+                            {organization.description && (
+                              <p className="text-sm text-muted-foreground mt-4 p-4 rounded-xl bg-[#FF6B35]/5 border border-[#FF6B35]/10">
+                                {organization.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+    
+              {/* Account Details */}
+              <Card className="shadow-lg mb-8 border-[#FF6B35]/10">
+                <CardContent className="pt-6">
+                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2 mb-6">
+                    <Shield className="w-5 h-5 text-[#FF6B35]" />
+                    Account Details
+                  </h2>
+    
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex items-center gap-4 p-4 rounded-xl bg-[#4CAF50]/10 border border-[#4CAF50]/20">
+                      <div className="w-12 h-12 rounded-xl bg-[#4CAF50]/20 flex items-center justify-center">
+                        <ShieldCheck className="w-6 h-6 text-[#4CAF50]" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Status</p>
+                        <p
+                          className={`text-lg font-semibold ${
+                            verificationStatus === "approved"
+                              ? "text-[#4CAF50]"
+                              : verificationStatus === "rejected"
+                                ? "text-destructive"
+                                : "text-[#E5A700]"
+                          }`}
+                        >
+                          {verificationLabel}
+                        </p>
+                      </div>
+                    </div>
+    
+                    <div className="flex items-center gap-4 p-4 rounded-xl bg-[#F7C948]/10 border border-[#F7C948]/20">
+                      <div className="w-12 h-12 rounded-xl bg-[#F7C948]/20 flex items-center justify-center">
+                        <Calendar className="w-6 h-6 text-[#E5A700]" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Member Since</p>
+                        <p className="text-lg font-semibold text-foreground">
+                          {formatMemberSince(organization.created_at)}
+                        </p>
+                      </div>
+                    </div>
+    
+                    <div className="flex items-center gap-4 p-4 rounded-xl bg-[#FF6B35]/10 border border-[#FF6B35]/20">
+                      <div className="w-12 h-12 rounded-xl bg-[#FF6B35]/20 flex items-center justify-center">
+                        <Building2 className="w-6 h-6 text-[#FF6B35]" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Role</p>
+                        <p className="text-lg font-semibold text-[#FF6B35]">NGO</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+    
+              {/* NGO Administrator */}
+              <Card className="shadow-lg mb-8 border-[#FF6B35]/10">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <User className="w-5 h-5 text-[#FF6B35]" />
+                    NGO Administrator
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <div className="w-8 h-8 rounded-lg bg-[#FF6B35]/10 flex items-center justify-center">
+                      <Mail className="w-4 h-4 text-[#FF6B35]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="text-foreground font-medium">{user.email}</p>
+                    </div>
+                  </div>
+    
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <div className="w-8 h-8 rounded-lg bg-[#4CAF50]/10 flex items-center justify-center">
+                      <Phone className="w-4 h-4 text-[#4CAF50]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Phone</p>
+                      <p className="text-foreground font-medium">
+                        {user.phone || "--"}
+                      </p>
+                    </div>
+                  </div>
+    
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <div className="w-8 h-8 rounded-lg bg-[#F7C948]/10 flex items-center justify-center">
+                      <CheckCircle2 className="w-4 h-4 text-[#E5A700]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Role</p>
+                      <p className="text-foreground font-medium">NGO</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+    
+              {/* Danger Zone */}
+              <Card className="shadow-lg border-destructive/30">
+                <CardContent className="pt-6">
+                  <h2 className="text-xl font-bold text-destructive flex items-center gap-2 mb-4">
+                    <AlertTriangle className="w-5 h-5" />
+                    Danger Zone
+                  </h2>
+                  <p className="text-muted-foreground mb-4">
+                    Deleting this NGO account is permanent. All claims, donation
+                    history, and organization data will be removed.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="border-destructive text-destructive hover:bg-destructive hover:text-white bg-transparent"
+                    onClick={() => setShowDeleteModal(true)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete NGO Account
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </main>
+    
+          {/* Delete Account Modal */}
+          <Dialog open={showDeleteModal} onOpenChange={resetDeleteModal}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="w-5 h-5" />
+                  Delete NGO Account
+                </DialogTitle>
+                <DialogDescription>
+                  This action cannot be undone. This will permanently delete your NGO
+                  account, all claims, and organization data.
+                </DialogDescription>
+              </DialogHeader>
+    
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-delete" className="text-sm font-medium">
+                    Type{" "}
+                    <span className="font-bold text-destructive">DELETE</span> to
+                    confirm
+                  </Label>
+                  <Input
+                    id="confirm-delete"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="Type DELETE here"
+                    className="border-destructive/50 focus-visible:ring-destructive"
+                  />
+                </div>
+    
+                {deleteError && (
+                  <p className="text-sm text-destructive flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    {deleteError}
+                  </p>
+                )}
+              </div>
+    
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={resetDeleteModal}
+                  className="bg-transparent"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteAccount}
+                  className="bg-destructive hover:bg-destructive/90"
+                >
+                  Delete My Account
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
-      </main>
-
-      {/* Delete Account Modal */}
-      <Dialog open={showDeleteModal} onOpenChange={resetDeleteModal}>
-      <DialogContent className="sm:max-w-md">
-  <DialogHeader>
-    <DialogTitle className="flex items-center gap-2 text-destructive">
-      <AlertTriangle className="w-5 h-5" />
-      Delete NGO Account
-    </DialogTitle>
-    <DialogDescription>
-      This action cannot be undone. This will permanently delete your NGO account,
-      all claims, and organization data.
-    </DialogDescription>
-  </DialogHeader>
-
-  <div className="space-y-4 py-4">
-    <div className="space-y-2">
-      <Label htmlFor="confirm-delete" className="text-sm font-medium">
-        Type <span className="font-bold text-destructive">DELETE</span> to confirm
-      </Label>
-      <Input
-        id="confirm-delete"
-        value={deleteConfirmText}
-        onChange={(e) => setDeleteConfirmText(e.target.value)}
-        placeholder="Type DELETE here"
-        className="border-destructive/50 focus-visible:ring-destructive"
-      />
-    </div>
-
-    {deleteError && (
-      <p className="text-sm text-destructive flex items-center gap-2">
-        <AlertTriangle className="w-4 h-4" />
-        {deleteError}
-      </p>
-    )}
-  </div>
-
-  <div className="flex gap-3 justify-end">
-    <Button variant="outline" onClick={resetDeleteModal}>
-      Cancel
-    </Button>
-    <Button
-      variant="destructive"
-      onClick={handleDeleteAccount}
-      className="bg-destructive hover:bg-destructive/90"
-    >
-      Delete My Account
-    </Button>
-  </div>
-</DialogContent>
-
-      </Dialog>
-    </div>
-  );
+      );
 }

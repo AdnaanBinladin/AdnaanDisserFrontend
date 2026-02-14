@@ -14,6 +14,7 @@ import {
   LogOut,
   LayoutDashboard,
   ChevronRight,
+  Leaf,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,10 +23,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 
-/* ================= Sidebar Items (DONOR) ================= */
+/* ================= Sidebar Items (DONOR ONLY) ================= */
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/donor/dashboard" },
-  { icon: Bell, label: "Notifications", href: "/dashboard/notifications" }, // ✅ shared
+  { icon: Bell, label: "Notifications", href: "/dashboard/notifications" },
   { icon: User, label: "Profile", href: "/donor/dashboard/profile" },
   { icon: ShieldCheck, label: "Security", href: "/donor/dashboard/security" },
 ];
@@ -67,7 +68,7 @@ export default function ChangePasswordPage() {
     if (!/[A-Z]/.test(password)) return "Must contain an uppercase letter";
     if (!/[a-z]/.test(password)) return "Must contain a lowercase letter";
     if (!/[0-9]/.test(password)) return "Must contain a number";
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password))
+    if (!/[!@#$%^&*(),.?\":{}|<>]/.test(password))
       return "Must contain a special character";
     return "";
   };
@@ -114,7 +115,7 @@ export default function ChangePasswordPage() {
     !errors.newPassword &&
     !errors.confirmPassword;
 
-  /* ================= Submit ================= */
+  /* ================= Submit (UNCHANGED LOGIC) ================= */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
@@ -176,43 +177,48 @@ export default function ChangePasswordPage() {
 
   /* ================= Render ================= */
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen flex bg-[#FFF8F0]">
       {/* ================= Sidebar ================= */}
-      <aside className="w-64 bg-card border-r border-border flex flex-col fixed h-full">
-        <div className="p-6 border-b border-border font-bold text-xl">
-          FoodShare
+      <aside className="w-64 bg-white border-r border-[#FF6B35]/10 flex flex-col fixed h-full">
+        <div className="p-6 border-b border-[#FF6B35]/10">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FF6B35]">
+              <Leaf className="h-4 w-4 text-white" />
+            </div>
+            <span className="text-xl font-bold text-[#FF6B35]">FoodShare</span>
+          </div>
         </div>
 
         <nav className="flex-1 p-4">
-          <ul className="space-y-2">
+          <ul className="space-y-1">
             {sidebarItems.map((item) => (
               <li key={item.label}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                     isRouteActive(item.href)
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "bg-[#FF6B35] text-white shadow-md"
+                      : "text-gray-500 hover:bg-[#FF6B35]/10 hover:text-[#FF6B35]"
                   }`}
                 >
                   <item.icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
+                  <span>{item.label}</span>
                 </Link>
               </li>
             ))}
           </ul>
         </nav>
 
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-[#FF6B35]/10">
           <button
             onClick={() => {
               localStorage.clear();
               router.replace("/");
             }}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive w-full"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 w-full"
           >
             <LogOut className="w-5 h-5" />
-            <span className="font-medium">Sign Out</span>
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>
@@ -220,10 +226,12 @@ export default function ChangePasswordPage() {
       {/* ================= Main Content ================= */}
       <main className="flex-1 ml-64 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <Card className="shadow-xl border-0">
-            <CardHeader className="text-center pb-2">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <ShieldCheck className="w-8 h-8 text-primary" />
+          <Card className="shadow-xl border-[#FF6B35]/15 overflow-hidden p-0">
+            <div className="h-10 bg-gradient-to-r from-[#FF6B35] via-[#F7C948] to-[#4CAF50]" />
+
+            <CardHeader className="text-center pt-8">
+              <div className="w-16 h-16 rounded-full bg-[#FF6B35]/10 flex items-center justify-center mx-auto mb-4">
+                <ShieldCheck className="w-8 h-8 text-[#FF6B35]" />
               </div>
               <CardTitle className="text-2xl font-bold">
                 Change Password
@@ -233,7 +241,7 @@ export default function ChangePasswordPage() {
               </p>
             </CardHeader>
 
-            <CardContent className="pt-6">
+            <CardContent className="pb-8">
               <form onSubmit={handleSubmit} className="space-y-5">
                 <PasswordField
                   label="Current Password"
@@ -264,43 +272,29 @@ export default function ChangePasswordPage() {
                   onBlur={() => handleBlur("confirmPassword")}
                 />
 
-                {/* Password Requirements */}
-<div className="bg-muted/50 rounded-lg p-4">
-  <p className="text-sm font-medium mb-2">
-    Password must contain:
-  </p>
+                <div className="rounded-lg p-4 border border-[#FF6B35]/15 bg-[#FFF8F0]">
+                  <p className="text-sm font-semibold mb-2">
+                    Password must contain:
+                  </p>
+                  <ul className="text-sm space-y-1">
+                    <RequirementItem met={form.newPassword.length >= 8} text="At least 8 characters" />
+                    <RequirementItem met={/[A-Z]/.test(form.newPassword)} text="One uppercase letter" />
+                    <RequirementItem met={/[a-z]/.test(form.newPassword)} text="One lowercase letter" />
+                    <RequirementItem met={/[0-9]/.test(form.newPassword)} text="One number" />
+                    <RequirementItem met={/[!@#$%^&*(),.?\":{}|<>]/.test(form.newPassword)} text="One special character (!@#$%^&*)" />
+                  </ul>
+                </div>
 
-  <ul className="text-sm space-y-1 text-muted-foreground">
-    <li className={form.newPassword.length >= 8 ? "text-secondary" : ""}>
-      - At least 8 characters
-    </li>
-
-    <li className={/[A-Z]/.test(form.newPassword) ? "text-secondary" : ""}>
-      - One uppercase letter
-    </li>
-
-    <li className={/[a-z]/.test(form.newPassword) ? "text-secondary" : ""}>
-      - One lowercase letter
-    </li>
-
-    <li className={/[0-9]/.test(form.newPassword) ? "text-secondary" : ""}>
-      - One number
-    </li>
-
-    <li
-      className={
-        /[!@#$%^&*(),.?":{}|<>]/.test(form.newPassword)
-          ? "text-secondary"
-          : ""
-      }
-    >
-      - One special character (!@#$%^&*)
-    </li>
-  </ul>
-</div>
-
-
-                <Button type="submit" className="w-full" disabled={!isFormValid}>
+                <Button
+                  type="submit"
+                  disabled={!isFormValid}
+                  className="w-full text-white font-semibold"
+                  style={{
+                    background: isFormValid
+                      ? "linear-gradient(to right, #FF6B35, #F7C948)"
+                      : undefined,
+                  }}
+                >
                   Continue <ChevronRight className="ml-2 w-4 h-4" />
                 </Button>
               </form>
@@ -312,7 +306,17 @@ export default function ChangePasswordPage() {
   );
 }
 
-/* ================= Reusable Password Field ================= */
+/* ================= Requirement Item ================= */
+function RequirementItem({ met, text }: { met: boolean; text: string }) {
+  return (
+    <li className={`flex items-center gap-2 ${met ? "text-[#4CAF50]" : "text-gray-400"}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${met ? "bg-[#4CAF50]" : "bg-gray-300"}`} />
+      {text}
+    </li>
+  );
+}
+
+/* ================= Password Field ================= */
 function PasswordField({
   label,
   value,
@@ -334,26 +338,26 @@ function PasswordField({
 }) {
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <Label className="font-medium">{label}</Label>
       <div className="relative">
-        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#FF6B35]/50" />
         <Input
           type={show ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
-          className="pl-10 pr-10"
+          className="pl-10 pr-10 border-[#FF6B35]/20 focus:border-[#FF6B35] focus:ring-[#FF6B35]/20"
         />
         <button
           type="button"
           onClick={() => setShow(!show)}
-          className="absolute right-3 top-1/2 -translate-y-1/2"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#FF6B35]"
         >
-          {show ? <EyeOff /> : <Eye />}
+          {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
         </button>
       </div>
       {error && touched && (
-        <p className="text-sm text-destructive flex gap-1">
+        <p className="text-sm text-red-500 flex items-center gap-1">
           <AlertCircle className="w-3 h-3" />
           {error}
         </p>
