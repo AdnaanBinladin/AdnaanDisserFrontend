@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -243,6 +246,18 @@ export function LoginForm() {
                     />
                   </div>
                 </div>
+                <div className="text-right mt-2">
+<div className="text-right mt-2">
+  <Link
+    href="/forgot-password"
+    className="text-sm text-orange-600 hover:underline"
+  >
+    Forgot password?
+  </Link>
+</div>
+
+</div>
+
 
                 {error && <p className="text-sm text-red-500">{error}</p>}
 

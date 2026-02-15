@@ -49,7 +49,8 @@ type DonorUser = {
   email: string;
   phone?: string;
   role: "donor";
-  status: "active" | "inactive" | "suspended";
+  status: "active" | "pending" | "suspended";
+  created_at: string;
 };
 
 
@@ -376,7 +377,40 @@ export default function DonorProfilePage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Account Status</p>
                     <p className="font-semibold text-green-700">
-  {profile ? "Active" : "Inactive"}
+                    <div
+  className={`flex items-center gap-4 p-4 rounded-xl ${
+    user.status === "active"
+      ? "bg-green-100"
+      : user.status === "pending"
+      ? "bg-yellow-100"
+      : "bg-red-100"
+  }`}
+>
+  <CheckCircle2
+    className={`w-6 h-6 ${
+      user.status === "active"
+        ? "text-green-600"
+        : user.status === "pending"
+        ? "text-yellow-600"
+        : "text-red-600"
+    }`}
+  />
+  <div>
+    <p className="text-sm text-muted-foreground">Account Status</p>
+    <p
+      className={`font-semibold ${
+        user.status === "active"
+          ? "text-green-700"
+          : user.status === "pending"
+          ? "text-yellow-700"
+          : "text-red-700"
+      }`}
+    >
+      {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+    </p>
+  </div>
+</div>
+
 </p>
 
                   </div>
@@ -388,7 +422,7 @@ export default function DonorProfilePage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Member Since</p>
                     <p className="font-semibold">
-  {new Date().toLocaleDateString("en-US", {
+  {new Date(user.created_at).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
   })}
