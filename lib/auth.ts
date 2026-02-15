@@ -190,3 +190,28 @@ export async function getAdminStats() {
   }
 }
 
+// Update user status (active/suspended)
+export async function updateUserStatus(
+  userId: string,
+  status: "active" | "suspended"
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${BASE_URL}/admin/users/${userId}/status`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}`
+      },
+      body: JSON.stringify({ status }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { success: false, error: data.error || "Failed to update user status" }
+    }
+    return { success: true }
+  } catch (err) {
+    console.error("Error updating user status:", err)
+    return { success: false, error: "Network error" }
+  }
+}
+

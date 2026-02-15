@@ -30,7 +30,7 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react"
-import { getPendingNGOs, approveNGO, rejectNGO, getAllUsers, getAdminStats, type PendingNGO } from "@/lib/auth"
+import { getPendingNGOs, approveNGO, rejectNGO, getAllUsers, getAdminStats, updateUserStatus, type PendingNGO } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 
 interface User {
@@ -246,12 +246,39 @@ export function AdminDashboard() {
     }
   }
 
-  const toggleUserStatus = (userId: string) => {
+  const toggleUserStatus = async (userId: string) => {
+    const targetUser = users.find((u) => u.id === userId)
+    if (!targetUser) return
+    const nextStatus = targetUser.status === "active" ? "suspended" : "active"
+
+    const result = await updateUserStatus(userId, nextStatus)
+    if (!result.success) {
+      toast({
+        title: "Error",
+        description: result.error || "Failed to update user status",
+        variant: "destructive",
+      })
+      return
+    }
+
     setUsers((prev) =>
       prev.map((user) =>
-        user.id === userId ? { ...user, status: user.status === "active" ? "suspended" : "active" } : user,
+        user.id === userId ? { ...user, status: nextStatus } : user,
       ),
     )
+
+    setStats((prev) => ({
+      ...prev,
+      activeUsers:
+        nextStatus === "active"
+          ? prev.activeUsers + 1
+          : Math.max(prev.activeUsers - 1, 0),
+    }))
+
+    toast({
+      title: "User Updated",
+      description: `User status changed to ${nextStatus}.`,
+    })
   }
 
   const generateReport = (type: string) => {
