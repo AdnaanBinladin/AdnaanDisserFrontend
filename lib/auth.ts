@@ -99,12 +99,15 @@ export async function getPendingNGOs(): Promise<PendingNGO[]> {
         "Authorization": `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}`
       },
     });
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`HTTP ${res.status}: ${text}`);
+    }
     const data = await res.json();
-    return data.ngos || [];
+    return Array.isArray(data) ? data : (data.ngos || []);
   } catch (err) {
     console.error("Error fetching pending NGOs:", err);
-    return [];
+    throw err;
   }
 }
 

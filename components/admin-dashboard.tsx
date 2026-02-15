@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -37,7 +38,7 @@ interface User {
   name: string
   email: string
   role: "donor" | "ngo" | "admin"
-  status: "active" | "suspended" | "pending"
+  status: "active" | "suspended" | "pending" | "rejected"
   joinDate: string
   lastActive: string
   donationsCount?: number
@@ -45,6 +46,7 @@ interface User {
 }
 
 export function AdminDashboard() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("ngos")
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
@@ -70,19 +72,33 @@ export function AdminDashboard() {
 
   // Fetch data on component mount
   useEffect(() => {
+    const role = typeof window !== "undefined" ? localStorage.getItem("role") : null
+    if (role !== "admin") {
+      toast({
+        title: "Access denied",
+        description: "Please sign in with an admin account.",
+        variant: "destructive",
+      })
+      router.push("/")
+      return
+    }
     fetchData()
   }, [])
 
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const [ngosData, usersData, statsData] = await Promise.all([
+      const [ngosRes, usersRes, statsRes] = await Promise.allSettled([
         getPendingNGOs(),
         getAllUsers(),
         getAdminStats(),
       ])
 
-      setPendingNGOs(ngosData)
+      const ngosData = ngosRes.status === "fulfilled" ? ngosRes.value : []
+      const usersData = usersRes.status === "fulfilled" ? usersRes.value : { users: [] }
+      const statsData = statsRes.status === "fulfilled" ? statsRes.value : null
+
+      setPendingNGOs(Array.isArray(ngosData) ? ngosData : [])
       
       // Transform users data if needed
       if (usersData.users) {
@@ -91,7 +107,7 @@ export function AdminDashboard() {
           name: u.full_name,
           email: u.email,
           role: u.role as "donor" | "ngo" | "admin",
-          status: u.status as "active" | "suspended" | "pending",
+          status: u.status as "active" | "suspended" | "pending" | "rejected",
           joinDate: u.created_at ? new Date(u.created_at).toLocaleDateString() : "N/A",
           lastActive: u.last_active ? new Date(u.last_active).toLocaleDateString() : "N/A",
           donationsCount: u.donations_count || 0,
@@ -103,13 +119,13 @@ export function AdminDashboard() {
         setStats({
           totalUsers: statsData.total_users || users.length,
           activeUsers: statsData.active_users || users.filter(u => u.status === "active").length,
-          pendingNGOs: ngosData.length,
+          pendingNGOs: statsData.pending_ngos ?? (Array.isArray(ngosData) ? ngosData.length : 0),
           totalDonations: statsData.total_donations || 0,
         })
       } else {
         setStats(prev => ({
           ...prev,
-          pendingNGOs: ngosData.length,
+          pendingNGOs: Array.isArray(ngosData) ? ngosData.length : 0,
         }))
       }
     } catch (error) {
@@ -124,6 +140,20 @@ export function AdminDashboard() {
     }
   }
 
+  const refreshPendingNGOs = async () => {
+    try {
+      const ngosData = await getPendingNGOs()
+      const pending = Array.isArray(ngosData) ? ngosData : []
+      setPendingNGOs(pending)
+      setStats((prev) => ({
+        ...prev,
+        pendingNGOs: pending.length,
+      }))
+    } catch (error) {
+      console.error("Error refreshing pending NGOs:", error)
+    }
+  }
+
   const handleApproveNGO = async (ngo: PendingNGO) => {
     setIsApproving(ngo.user_id)
     try {
@@ -134,13 +164,18 @@ export function AdminDashboard() {
           description: `${ngo.full_name} has been approved. An email notification has been sent.`,
         })
         // Remove from pending list
-        setPendingNGOs(prev => prev.filter(n => n.user_id !== ngo.user_id))
+        setPendingNGOs(prev => prev.filter(
+          (n) => n.user_id !== ngo.user_id && n.org_id !== ngo.org_id
+        ))
+        setUsers((prev) =>
+          prev.map((u) => (u.id === ngo.user_id ? { ...u, status: "active" } : u))
+        )
         setStats(prev => ({
           ...prev,
           pendingNGOs: Math.max(prev.pendingNGOs - 1, 0),
           activeUsers: prev.activeUsers + 1,
-          totalUsers: prev.totalUsers + 1,
         }))
+        await refreshPendingNGOs()
       } else {
         toast({
           title: "Error",
@@ -178,13 +213,20 @@ export function AdminDashboard() {
           description: `${rejectingNGO.full_name} has been rejected.`,
         })
         // Remove from pending list
-        setPendingNGOs(prev => prev.filter(n => n.user_id !== rejectingNGO.user_id))
+        setPendingNGOs(prev => prev.filter(
+          (n) => n.user_id !== rejectingNGO.user_id && n.org_id !== rejectingNGO.org_id
+        ))
+        setUsers((prev) =>
+          prev.map((u) => (u.id === rejectingNGO.user_id ? { ...u, status: "rejected" } : u))
+        )
         setStats(prev => ({
           ...prev,
-          pendingNGOs: prev.pendingNGOs - 1,
+          pendingNGOs: Math.max(prev.pendingNGOs - 1, 0),
+          activeUsers: Math.max(prev.activeUsers - 1, 0),
         }))
         setShowRejectDialog(false)
         setRejectingNGO(null)
+        await refreshPendingNGOs()
       } else {
         toast({
           title: "Error",
